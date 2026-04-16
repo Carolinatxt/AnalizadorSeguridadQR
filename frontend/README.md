@@ -1,0 +1,1 @@
+Aplicación Android del proyecto AnalizadorSeguridadQR.

@@ -1,0 +1,1 @@
+Documentación técnica y notas del proyecto.
