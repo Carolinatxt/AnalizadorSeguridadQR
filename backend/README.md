@@ -1,1 +1,0 @@
-Backend FastAPI del proyecto AnalizadorSeguridadQR.
