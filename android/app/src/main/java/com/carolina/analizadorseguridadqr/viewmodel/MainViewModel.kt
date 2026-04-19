@@ -29,6 +29,8 @@ class MainViewModel(
 
     // Guarda la última URL web válida para el botón "Reintentar".
     private var lastValidWebUrl: String? = null
+    // Evita lanzar varias peticiones al backend por dobles toques del usuario.
+    private var isAnalyzing: Boolean = false
 
     // Simula que el usuario empieza un escaneo.
     fun onScanButtonClicked() {
@@ -76,6 +78,12 @@ class MainViewModel(
 
     // Reintenta el análisis de la última URL válida conocida.
     fun retryLastAnalysis() {
+        // Si ya hay una petición activa, ignoramos el toque extra.
+        if (isAnalyzing) {
+            Log.w(TAG, "Reintento ignorado: ya hay un análisis en curso.")
+            return
+        }
+
         val url = lastValidWebUrl
         if (url.isNullOrBlank()) {
             Log.w(TAG, "No hay URL válida reciente para reintentar análisis.")
@@ -89,6 +97,12 @@ class MainViewModel(
     }
 
     private fun analyzeUrl(url: String) {
+        if (isAnalyzing) {
+            Log.w(TAG, "Solicitud ignorada: ya hay un análisis en curso.")
+            return
+        }
+
+        isAnalyzing = true
         viewModelScope.launch {
             _uiState.value = ScanUiState.Loading
 
@@ -117,6 +131,8 @@ class MainViewModel(
                 _uiState.value = ScanUiState.Error(
                     "No se pudo completar el análisis. Inténtalo de nuevo."
                 )
+            } finally {
+                isAnalyzing = false
             }
         }
     }

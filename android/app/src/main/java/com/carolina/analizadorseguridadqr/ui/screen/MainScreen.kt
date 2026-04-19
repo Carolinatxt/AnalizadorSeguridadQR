@@ -666,6 +666,7 @@ private enum class BottomBarItem {
     Settings,
 }
 
+// Barra inferior solo visual en esta fase; sin navegación funcional todavía.
 @Composable
 private fun VisualBottomBar(selected: BottomBarItem) {
     Row(
