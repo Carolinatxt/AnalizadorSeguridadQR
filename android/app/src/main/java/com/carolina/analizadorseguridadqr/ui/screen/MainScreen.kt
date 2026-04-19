@@ -23,10 +23,8 @@ import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
 @Composable
 fun MainScreen(
     uiState: ScanUiState,
-    onShowLoading: () -> Unit,
+    onStartScan: () -> Unit,
     onShowIdle: () -> Unit,
-    onShowMockReadyUrl: () -> Unit,
-    onShowMockResult: () -> Unit,
 ) {
     // Layout simple en columna para mantener el codigo facil de seguir.
     Column(
@@ -41,37 +39,22 @@ fun MainScreen(
         )
 
         Text(
-            text = "Base V0: prueba de estados con ViewModel + StateFlow.",
+            text = "Escanea un QR y valida si contiene una URL web (http/https).",
             style = MaterialTheme.typography.bodyMedium,
         )
 
         Button(
-            onClick = onShowLoading,
+            onClick = onStartScan,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            // Boton temporal para simular que se inicia un proceso.
-            Text("Probar Loading")
+            Text("Escanear QR")
         }
 
         Button(
             onClick = onShowIdle,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Volver a Idle")
-        }
-
-        Button(
-            onClick = onShowMockReadyUrl,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Mostrar URL mock")
-        }
-
-        Button(
-            onClick = onShowMockResult,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Mostrar resultado mock")
+            Text("Limpiar estado")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -103,11 +86,13 @@ private fun StateContent(uiState: ScanUiState) {
         }
 
         is ScanUiState.NotAWebUrl -> {
-            Text("URL no web: ${uiState.message}")
+            Text("No se puede analizar este QR.")
+            Text(uiState.message)
         }
 
         is ScanUiState.ReadyToAnalyze -> {
-            Text("Lista para analizar: ${uiState.url}")
+            Text("URL detectada y lista para analizar:")
+            Text(uiState.url)
         }
 
         is ScanUiState.AnalysisResult -> {
@@ -128,10 +113,8 @@ private fun MainScreenPreview() {
     AnalizadorSeguridadQRTheme {
         MainScreen(
             uiState = ScanUiState.Idle,
-            onShowLoading = {},
+            onStartScan = {},
             onShowIdle = {},
-            onShowMockReadyUrl = {},
-            onShowMockResult = {},
         )
     }
 }

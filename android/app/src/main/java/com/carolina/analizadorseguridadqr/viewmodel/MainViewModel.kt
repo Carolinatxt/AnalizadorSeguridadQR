@@ -1,5 +1,6 @@
 package com.carolina.analizadorseguridadqr.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,24 +25,34 @@ class MainViewModel : ViewModel() {
         _uiState.value = ScanUiState.Idle
     }
 
-    fun showMockReadyUrl() {
-        // Dato de ejemplo para validar la UI sin usar camara ni backend.
-        _uiState.value = ScanUiState.ReadyToAnalyze(
-            url = "https://ejemplo.com/oferta-qr"
-        )
-    }
-
-    fun showMockResult() {
-        // Resultado simulado para comprobar como se renderiza la tarjeta.
-        _uiState.value = ScanUiState.AnalysisResult(
-            riskLevel = "suspicious",
-            analysisStatus = "partial",
-            summary = "Resultado mock para validar la UI sin backend.",
-        )
-    }
-
     fun showError(message: String) {
         // Permite mostrar errores de forma controlada en la UI.
         _uiState.value = ScanUiState.Error(message)
+    }
+
+    // Recibe el texto bruto del QR y aplica una validacion funcional minima.
+    fun onScanResult(rawValue: String?) {
+        val content = rawValue?.trim()
+        if (content.isNullOrEmpty()) {
+            _uiState.value = ScanUiState.NotAWebUrl(
+                "No se detecto un enlace web valido en el codigo QR."
+            )
+            return
+        }
+
+        val parsed = Uri.parse(content)
+        val scheme = parsed.scheme?.lowercase()
+        val hasWebScheme = scheme == "http" || scheme == "https"
+        val hasHost = !parsed.host.isNullOrBlank()
+
+        if (!hasWebScheme || !hasHost) {
+            _uiState.value = ScanUiState.NotAWebUrl(
+                "El codigo QR no contiene un enlace web valido (http o https)."
+            )
+            return
+        }
+
+        // Si pasa el filtro, queda listo para conectar backend en el siguiente paso.
+        _uiState.value = ScanUiState.ReadyToAnalyze(content)
     }
 }
