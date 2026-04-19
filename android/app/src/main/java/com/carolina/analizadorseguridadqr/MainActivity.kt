@@ -4,44 +4,37 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import com.carolina.analizadorseguridadqr.ui.screen.MainScreen
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
+import com.carolina.analizadorseguridadqr.viewmodel.MainViewModel
 
+// Activity minima: conecta ViewModel + Compose.
+// Aqui no metemos logica de negocio, solo coordinacion de UI.
 class MainActivity : ComponentActivity() {
+    // El ViewModel vive asociado al ciclo de vida de esta Activity.
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             AnalizadorSeguridadQRTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                // Convertimos StateFlow en estado observable por Compose.
+                val uiState by viewModel.uiState.collectAsState()
+
+                // La pantalla solo recibe estado actual + acciones de usuario.
+                MainScreen(
+                    uiState = uiState,
+                    onShowLoading = viewModel::onScanButtonClicked,
+                    onShowIdle = viewModel::showIdle,
+                    onShowMockReadyUrl = viewModel::showMockReadyUrl,
+                    onShowMockResult = viewModel::showMockResult,
+                )
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    AnalizadorSeguridadQRTheme {
-        Greeting("Android")
     }
 }
