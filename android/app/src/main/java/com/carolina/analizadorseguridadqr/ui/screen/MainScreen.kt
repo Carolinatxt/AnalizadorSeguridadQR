@@ -39,7 +39,7 @@ fun MainScreen(
         )
 
         Text(
-            text = "Escanea un QR y valida si contiene una URL web (http/https).",
+            text = "Escanea un QR: se valida la URL y se consulta el backend automaticamente.",
             style = MaterialTheme.typography.bodyMedium,
         )
 
@@ -82,7 +82,7 @@ private fun StateContent(uiState: ScanUiState) {
         }
 
         ScanUiState.Loading -> {
-            Text("Loading: simulando proceso de escaneo.")
+            Text("Procesando QR y analizando URL...")
         }
 
         is ScanUiState.NotAWebUrl -> {

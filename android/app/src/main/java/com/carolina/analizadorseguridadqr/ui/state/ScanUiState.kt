@@ -14,7 +14,7 @@ sealed class ScanUiState {
     // El QR contiene una URL valida y lista para el siguiente paso.
     data class ReadyToAnalyze(val url: String) : ScanUiState()
 
-    // Resultado final de analisis (placeholder para la integracion backend).
+    // Resultado final devuelto por el backend.
     data class AnalysisResult(
         val riskLevel: String,
         val analysisStatus: String,

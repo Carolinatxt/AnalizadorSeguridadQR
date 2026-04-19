@@ -1,14 +1,26 @@
 package com.carolina.analizadorseguridadqr.viewmodel
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.carolina.analizadorseguridadqr.network.AnalysisService
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 
 // ViewModel: concentra el estado de pantalla para que la Activity quede limpia.
-class MainViewModel : ViewModel() {
+class MainViewModel(
+    private val analysisService: AnalysisService = AnalysisService(),
+) : ViewModel() {
+    companion object {
+        private const val TAG = "MainViewModel"
+    }
+
     // Mutable interno: solo el ViewModel puede cambiar el estado.
     private val _uiState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
 
@@ -52,7 +64,38 @@ class MainViewModel : ViewModel() {
             return
         }
 
-        // Si pasa el filtro, queda listo para conectar backend en el siguiente paso.
+        // Si pasa el filtro, marcamos URL valida y lanzamos analisis real.
         _uiState.value = ScanUiState.ReadyToAnalyze(content)
+        analyzeUrl(content)
+    }
+
+    private fun analyzeUrl(url: String) {
+        viewModelScope.launch {
+            _uiState.value = ScanUiState.Loading
+
+            try {
+                val response = analysisService.analyzeUrl(url)
+                _uiState.value = ScanUiState.AnalysisResult(
+                    riskLevel = response.riskLevel,
+                    analysisStatus = response.analysisStatus,
+                    summary = response.summary,
+                )
+            } catch (exception: IOException) {
+                Log.d(TAG, "Error de conexion con backend: ${exception.message}")
+                _uiState.value = ScanUiState.Error(
+                    "No se pudo conectar con el servicio de analisis."
+                )
+            } catch (exception: HttpException) {
+                Log.d(TAG, "Error HTTP backend: ${exception.code()}")
+                _uiState.value = ScanUiState.Error(
+                    "No se pudo completar el analisis. Intentalo de nuevo."
+                )
+            } catch (exception: Exception) {
+                Log.d(TAG, "Error inesperado al analizar URL: ${exception.message}")
+                _uiState.value = ScanUiState.Error(
+                    "No se pudo completar el analisis. Intentalo de nuevo."
+                )
+            }
+        }
     }
 }
