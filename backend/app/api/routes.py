@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import AnalyzeUrlRequest, AnalyzeUrlResponse
+from app.services.ipqs_service import check_url_with_ipqs
 from app.services.web_risk_service import check_url_with_web_risk
 
 router = APIRouter()
@@ -48,6 +49,21 @@ async def analyze_url(payload: AnalyzeUrlRequest) -> AnalyzeUrlResponse:
     )
 
     web_risk_result = await check_url_with_web_risk(url)
+    ipqs_result = await check_url_with_ipqs(url)
+
+    # Integracion temporal V0: registramos IPQS para trazabilidad.
+    # La decision final del endpoint sigue basada en Web Risk por ahora.
+    logger.info(
+        "Resultado IPQS | provider_status=%s | available=%s | success=%s | risk_score=%s | phishing=%s | malware=%s | suspicious=%s | unsafe=%s",
+        ipqs_result["provider_status"],
+        ipqs_result["available"],
+        ipqs_result["success"],
+        ipqs_result["risk_score"],
+        ipqs_result["phishing"],
+        ipqs_result["malware"],
+        ipqs_result["suspicious"],
+        ipqs_result["unsafe"],
+    )
 
     response: AnalyzeUrlResponse
     if not web_risk_result["available"]:
