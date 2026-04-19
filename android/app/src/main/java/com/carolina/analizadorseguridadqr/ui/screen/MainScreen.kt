@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
@@ -241,10 +242,10 @@ private fun NotWebUrlStateScreen(
         onNavigationClick = onShowIdle,
         actionIcon = Icons.Outlined.History,
         onActionClick = null,
-        centerIcon = Icons.Outlined.Info,
-        centerIconTint = QrTextSecondary,
+        illustration = { NotWebIllustration() },
         title = "Este QR no contiene un enlace web",
         subtitle = subtitle,
+        buttonsTopSpacerWeight = 1.35f,
         primaryText = "Escanear otro QR",
         primaryIcon = Icons.Outlined.QrCode2,
         onPrimaryClick = onStartScan,
@@ -270,8 +271,7 @@ private fun ErrorStateScreen(
         onNavigationClick = null,
         actionIcon = Icons.Outlined.Close,
         onActionClick = onShowIdle,
-        centerIcon = Icons.Outlined.ErrorOutline,
-        centerIconTint = QrTextSecondary,
+        illustration = { AnalysisErrorIllustration() },
         title = "No se puede analizar el enlace ahora mismo",
         subtitle = subtitle,
         primaryText = "Reintentar",
@@ -358,10 +358,10 @@ private fun InfoStateLayout(
     onNavigationClick: (() -> Unit)?,
     actionIcon: ImageVector?,
     onActionClick: (() -> Unit)?,
-    centerIcon: ImageVector,
-    centerIconTint: Color,
+    illustration: @Composable () -> Unit,
     title: String,
     subtitle: String,
+    buttonsTopSpacerWeight: Float = 1f,
     primaryText: String,
     primaryIcon: ImageVector?,
     onPrimaryClick: () -> Unit,
@@ -387,20 +387,7 @@ private fun InfoStateLayout(
             )
             Spacer(modifier = Modifier.height(46.dp))
 
-            Box(
-                modifier = Modifier
-                    .size(130.dp)
-                    .clip(RoundedCornerShape(36.dp))
-                    .background(QrCardBackground),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = centerIcon,
-                    contentDescription = null,
-                    tint = centerIconTint,
-                    modifier = Modifier.size(62.dp),
-                )
-            }
+            illustration()
 
             Spacer(modifier = Modifier.height(42.dp))
             Text(
@@ -417,7 +404,8 @@ private fun InfoStateLayout(
                 color = QrTextSecondary,
                 textAlign = TextAlign.Center,
             )
-            Spacer(modifier = Modifier.weight(1f))
+            // Permite separar mas o menos el texto de los botones segun el estado.
+            Spacer(modifier = Modifier.weight(buttonsTopSpacerWeight))
 
             PrimaryActionButton(
                 text = primaryText,
@@ -431,6 +419,76 @@ private fun InfoStateLayout(
             )
             Spacer(modifier = Modifier.height(20.dp))
         }
+    }
+}
+
+@Composable
+private fun NotWebIllustration() {
+    // Ilustracion ligera: blobs suaves + tarjeta central blanca.
+    Box(
+        modifier = Modifier.size(144.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = (-18).dp, y = (-16).dp)
+                .size(width = 96.dp, height = 104.dp)
+                .clip(RoundedCornerShape(topStart = 52.dp, topEnd = 44.dp, bottomEnd = 56.dp, bottomStart = 40.dp))
+                .background(QrOutline.copy(alpha = 0.78f)),
+        )
+        Box(
+            modifier = Modifier
+                .offset(x = 22.dp, y = 22.dp)
+                .size(84.dp)
+                .clip(CircleShape)
+                .background(QrGreenSoft.copy(alpha = 0.9f)),
+        )
+        Box(
+            modifier = Modifier
+                .size(112.dp)
+                .clip(RoundedCornerShape(34.dp))
+                .background(QrCardBackground),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = null,
+                tint = QrIconMuted.copy(alpha = 0.92f),
+                modifier = Modifier.size(38.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnalysisErrorIllustration() {
+    // Tarjeta limpia con nube "sin conexion" y punto rojo decorativo.
+    Box(
+        modifier = Modifier.size(130.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(128.dp)
+                .clip(RoundedCornerShape(36.dp))
+                .background(QrCardBackground),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.CloudOff,
+                contentDescription = null,
+                tint = QrIconMuted,
+                modifier = Modifier.size(66.dp),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-16).dp, y = 14.dp)
+                .size(14.dp)
+                .clip(CircleShape)
+                .background(QrDanger),
+        )
     }
 }
 
