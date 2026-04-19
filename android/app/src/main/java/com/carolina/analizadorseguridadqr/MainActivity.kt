@@ -16,8 +16,8 @@ import com.carolina.analizadorseguridadqr.ui.screen.MainScreen
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
 import com.carolina.analizadorseguridadqr.viewmodel.MainViewModel
 
-// Activity minima: conecta ViewModel + Compose.
-// Aqui no metemos logica de negocio, solo coordinacion de UI.
+// Activity mínima: conecta ViewModel + Compose.
+// Aquí no metemos lógica de negocio, solo coordinación de UI.
 class MainActivity : ComponentActivity() {
     companion object {
         private const val TAG = "MainActivity"
@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
                     uiState = uiState,
                     onStartScan = ::startScan,
                     onShowIdle = viewModel::showIdle,
+                    onRetryAnalysis = viewModel::retryLastAnalysis,
                 )
             }
         }
@@ -55,7 +56,7 @@ class MainActivity : ComponentActivity() {
         scanner = GmsBarcodeScanning.getClient(this, options)
     }
 
-    // La Activity solo lanza escaner y delega el resultado al ViewModel.
+    // La Activity solo lanza escáner y delega el resultado al ViewModel.
     private fun startScan() {
         viewModel.onScanButtonClicked()
 
@@ -67,8 +68,8 @@ class MainActivity : ComponentActivity() {
                 viewModel.showIdle()
             }
             .addOnFailureListener { error ->
-                Log.d(TAG, "Fallo al escanear QR: ${error.message}")
-                viewModel.showError("No se pudo completar el escaneo. Intentalo de nuevo.")
+                Log.w(TAG, "Fallo al escanear QR: ${error.message}", error)
+                viewModel.showError("No se pudo completar el escaneo. Inténtalo de nuevo.")
             }
     }
 }

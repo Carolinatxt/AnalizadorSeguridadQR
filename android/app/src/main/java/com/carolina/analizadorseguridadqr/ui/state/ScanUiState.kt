@@ -11,7 +11,7 @@ sealed class ScanUiState {
     // El QR existe, pero su contenido no es un enlace web válido para esta app.
     data class NotAWebUrl(val message: String) : ScanUiState()
 
-    // El QR contiene una URL válida y lista para el siguiente paso.
+    // Estado transitorio: URL válida detectada y lista para analizar.
     data class ReadyToAnalyze(val url: String) : ScanUiState()
 
     // Resultado final devuelto por el backend.

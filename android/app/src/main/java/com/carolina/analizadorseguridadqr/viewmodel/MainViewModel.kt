@@ -27,14 +27,18 @@ class MainViewModel(
     // Exponemos solo lectura para evitar cambios desde fuera.
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
 
+    // Guarda la última URL web válida para el botón "Reintentar".
+    private var lastValidWebUrl: String? = null
+
     // Simula que el usuario empieza un escaneo.
     fun onScanButtonClicked() {
         _uiState.value = ScanUiState.Loading
     }
 
     fun showIdle() {
-        // Reinicia la pantalla al punto de inicio.
+        // Decisión de UX: volver al inicio reinicia todo el flujo y exige reescanear.
         _uiState.value = ScanUiState.Idle
+        lastValidWebUrl = null
     }
 
     fun showError(message: String) {
@@ -64,9 +68,24 @@ class MainViewModel(
             return
         }
 
-        // Si pasa el filtro, marcamos URL válida y lanzamos análisis real.
+        // ReadyToAnalyze se mantiene como puente conceptual del flujo.
+        lastValidWebUrl = content
         _uiState.value = ScanUiState.ReadyToAnalyze(content)
         analyzeUrl(content)
+    }
+
+    // Reintenta el análisis de la última URL válida conocida.
+    fun retryLastAnalysis() {
+        val url = lastValidWebUrl
+        if (url.isNullOrBlank()) {
+            Log.w(TAG, "No hay URL válida reciente para reintentar análisis.")
+            _uiState.value = ScanUiState.Error(
+                "No hay un enlace válido reciente para reintentar. Escanea otro QR."
+            )
+            return
+        }
+
+        analyzeUrl(url)
     }
 
     private fun analyzeUrl(url: String) {
