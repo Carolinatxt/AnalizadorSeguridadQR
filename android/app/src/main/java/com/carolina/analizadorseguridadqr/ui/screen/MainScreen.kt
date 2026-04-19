@@ -26,7 +26,7 @@ fun MainScreen(
     onStartScan: () -> Unit,
     onShowIdle: () -> Unit,
 ) {
-    // Layout simple en columna para mantener el codigo facil de seguir.
+    // Layout simple en columna para mantener el código fácil de seguir.
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -39,7 +39,7 @@ fun MainScreen(
         )
 
         Text(
-            text = "Escanea un QR: se valida la URL y se consulta el backend automaticamente.",
+            text = "Escanea un QR: se valida la URL y se consulta el backend automáticamente.",
             style = MaterialTheme.typography.bodyMedium,
         )
 
@@ -66,7 +66,7 @@ fun MainScreen(
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                // El contenido cambia segun el estado emitido por el ViewModel.
+                // El contenido cambia según el estado emitido por el ViewModel.
                 StateContent(uiState = uiState)
             }
         }
@@ -78,7 +78,7 @@ private fun StateContent(uiState: ScanUiState) {
     // Renderizado declarativo: cada estado pinta un bloque distinto.
     when (uiState) {
         ScanUiState.Idle -> {
-            Text("Idle: esperando una accion del usuario.")
+            Text("En espera: esperando una acción del usuario.")
         }
 
         ScanUiState.Loading -> {
@@ -96,9 +96,9 @@ private fun StateContent(uiState: ScanUiState) {
         }
 
         is ScanUiState.AnalysisResult -> {
-            Text("risk_level: ${uiState.riskLevel}")
-            Text("analysis_status: ${uiState.analysisStatus}")
-            Text("summary: ${uiState.summary}")
+            Text("Nivel de riesgo: ${uiState.riskLevel}")
+            Text("Estado del análisis: ${uiState.analysisStatus}")
+            Text("Resumen: ${uiState.summary}")
         }
 
         is ScanUiState.Error -> {

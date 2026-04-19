@@ -1,17 +1,17 @@
 package com.carolina.analizadorseguridadqr.ui.state
 
-// Estados de la pantalla principal durante el flujo de escaneo/analisis.
+// Estados de la pantalla principal durante el flujo de escaneo/análisis.
 sealed class ScanUiState {
-    // Estado inicial: aun no hay datos de QR.
+    // Estado inicial: aún no hay datos de QR.
     data object Idle : ScanUiState()
 
     // Estado de trabajo (por ejemplo, esperando resultado de escaneo).
     data object Loading : ScanUiState()
 
-    // El QR existe, pero su contenido no es un enlace web valido para esta app.
+    // El QR existe, pero su contenido no es un enlace web válido para esta app.
     data class NotAWebUrl(val message: String) : ScanUiState()
 
-    // El QR contiene una URL valida y lista para el siguiente paso.
+    // El QR contiene una URL válida y lista para el siguiente paso.
     data class ReadyToAnalyze(val url: String) : ScanUiState()
 
     // Resultado final devuelto por el backend.
@@ -21,6 +21,6 @@ sealed class ScanUiState {
         val summary: String,
     ) : ScanUiState()
 
-    // Estado de error generico para fallos inesperados de flujo.
+    // Estado de error genérico para fallos inesperados de flujo.
     data class Error(val message: String) : ScanUiState()
 }

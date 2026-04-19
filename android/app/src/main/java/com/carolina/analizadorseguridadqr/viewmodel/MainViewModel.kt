@@ -42,12 +42,12 @@ class MainViewModel(
         _uiState.value = ScanUiState.Error(message)
     }
 
-    // Recibe el texto bruto del QR y aplica una validacion funcional minima.
+    // Recibe el texto bruto del QR y aplica una validación funcional mínima.
     fun onScanResult(rawValue: String?) {
         val content = rawValue?.trim()
         if (content.isNullOrEmpty()) {
             _uiState.value = ScanUiState.NotAWebUrl(
-                "No se detecto un enlace web valido en el codigo QR."
+                "No se detectó un enlace web válido en el código QR."
             )
             return
         }
@@ -59,12 +59,12 @@ class MainViewModel(
 
         if (!hasWebScheme || !hasHost) {
             _uiState.value = ScanUiState.NotAWebUrl(
-                "El codigo QR no contiene un enlace web valido (http o https)."
+                "El código QR no contiene un enlace web válido (http o https)."
             )
             return
         }
 
-        // Si pasa el filtro, marcamos URL valida y lanzamos analisis real.
+        // Si pasa el filtro, marcamos URL válida y lanzamos análisis real.
         _uiState.value = ScanUiState.ReadyToAnalyze(content)
         analyzeUrl(content)
     }
@@ -81,19 +81,22 @@ class MainViewModel(
                     summary = response.summary,
                 )
             } catch (exception: IOException) {
-                Log.d(TAG, "Error de conexion con backend: ${exception.message}")
+                // Error controlado de red: warning para diagnóstico sin marcar fallo crítico.
+                Log.w(TAG, "Error de conexión con backend: ${exception.message}", exception)
                 _uiState.value = ScanUiState.Error(
-                    "No se pudo conectar con el servicio de analisis."
+                    "No se pudo conectar con el servicio de análisis."
                 )
             } catch (exception: HttpException) {
-                Log.d(TAG, "Error HTTP backend: ${exception.code()}")
+                // Error HTTP controlado: el servidor respondió, pero no en estado exitoso.
+                Log.w(TAG, "Error HTTP backend: ${exception.code()}", exception)
                 _uiState.value = ScanUiState.Error(
-                    "No se pudo completar el analisis. Intentalo de nuevo."
+                    "No se pudo completar el análisis. Inténtalo de nuevo."
                 )
             } catch (exception: Exception) {
-                Log.d(TAG, "Error inesperado al analizar URL: ${exception.message}")
+                // Error no previsto: se registra como error para facilitar investigación.
+                Log.e(TAG, "Error inesperado al analizar URL: ${exception.message}", exception)
                 _uiState.value = ScanUiState.Error(
-                    "No se pudo completar el analisis. Intentalo de nuevo."
+                    "No se pudo completar el análisis. Inténtalo de nuevo."
                 )
             }
         }
