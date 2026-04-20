@@ -19,6 +19,7 @@ sealed class ScanUiState {
         val riskLevel: String,
         val analysisStatus: String,
         val summary: String,
+        val analyzedUrl: String? = null,
     ) : ScanUiState()
 
     // Estado de error genérico para fallos inesperados de flujo.

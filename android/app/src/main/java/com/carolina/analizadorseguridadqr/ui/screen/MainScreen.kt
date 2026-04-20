@@ -1,6 +1,8 @@
 package com.carolina.analizadorseguridadqr.ui.screen
 
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +27,10 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
@@ -90,7 +95,6 @@ fun MainScreen(
         is ScanUiState.ReadyToAnalyze -> LoadingStateScreen()
         is ScanUiState.AnalysisResult -> AnalysisResultStateScreen(
             result = uiState,
-            onStartScan = onStartScan,
             onShowIdle = onShowIdle,
         )
     }
@@ -285,10 +289,24 @@ private fun ErrorStateScreen(
 @Composable
 private fun AnalysisResultStateScreen(
     result: ScanUiState.AnalysisResult,
-    onStartScan: () -> Unit,
     onShowIdle: () -> Unit,
 ) {
-    val visual = buildRiskVisual(result.riskLevel, result.analysisStatus)
+    AnalysisResultScreen(
+        result = result,
+        onShowIdle = onShowIdle,
+        // Callback preparado para fase posterior (abrir enlace real).
+        onOpenLink = {},
+    )
+}
+
+@Composable
+private fun AnalysisResultScreen(
+    result: ScanUiState.AnalysisResult,
+    onShowIdle: () -> Unit,
+    onOpenLink: () -> Unit,
+) {
+    val uiModel = buildAnalysisResultUiModel(result)
+    val domain = extractDisplayDomain(result.analyzedUrl)
 
     Scaffold(
         containerColor = QrBackground,
@@ -302,51 +320,41 @@ private fun AnalysisResultStateScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            QrTopBar(actionIcon = Icons.Outlined.History)
-            Spacer(modifier = Modifier.height(28.dp))
+            ResultTopBar(onBack = onShowIdle)
+            Spacer(modifier = Modifier.height(24.dp))
 
-            ResultSummaryCard(visual = visual)
+            ResultHero(model = uiModel)
+            Spacer(modifier = Modifier.height(22.dp))
+
+            Text(
+                text = uiModel.title,
+                style = MaterialTheme.typography.headlineLarge,
+                color = uiModel.accentColor,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = uiModel.description,
+                style = MaterialTheme.typography.bodyLarge,
+                color = QrTextSecondary,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(26.dp))
+
+            DetectedDomainCard(
+                domain = domain,
+                accentColor = uiModel.accentColor,
+                accentSoftColor = uiModel.softColor,
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+            ResultActions(
+                riskType = uiModel.riskType,
+                onShowIdle = onShowIdle,
+                onOpenLink = onOpenLink,
+            )
             Spacer(modifier = Modifier.height(18.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(QrCardBackground)
-                    .padding(22.dp),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "Nivel de riesgo: ${result.riskLevel}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = QrTextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = "Estado del análisis: ${result.analysisStatus}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = QrTextSecondary,
-                    )
-                    Text(
-                        text = "Resumen: ${result.summary}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = QrTextSecondary,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-            PrimaryActionButton(
-                text = "Escanear otro QR",
-                icon = Icons.Outlined.QrCode2,
-                onClick = onStartScan,
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            SecondaryActionButton(
-                text = "Volver al inicio",
-                onClick = onShowIdle,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -634,87 +642,236 @@ private fun LoadingDot(isActive: Boolean) {
 }
 
 @Composable
-private fun ResultSummaryCard(visual: ResultVisualModel) {
+private fun ResultTopBar(onBack: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = "Volver",
+                tint = QrTextSecondary,
+            )
+        }
+        Text(
+            text = "Resultado",
+            style = MaterialTheme.typography.titleLarge,
+            color = QrGreenDark,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f),
+        )
+        Box(modifier = Modifier.padding(12.dp)) {
+            Icon(
+                imageVector = Icons.Outlined.History,
+                contentDescription = null,
+                tint = QrTextSecondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ResultHero(model: AnalysisResultUiModel) {
+    Box(
+        modifier = Modifier.size(190.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(170.dp)
+                .clip(CircleShape)
+                .background(model.softColor.copy(alpha = 0.45f)),
+        )
+        Box(
+            modifier = Modifier
+                .size(142.dp)
+                .clip(CircleShape)
+                .background(QrCardBackground)
+                .border(
+                    width = 4.dp,
+                    color = model.accentColor.copy(alpha = 0.75f),
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = model.heroIcon,
+                contentDescription = null,
+                tint = model.accentColor,
+                modifier = Modifier.size(58.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetectedDomainCard(
+    domain: String,
+    accentColor: Color,
+    accentSoftColor: Color,
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(visual.backgroundColor)
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+            .clip(RoundedCornerShape(30.dp))
+            .background(QrCardBackground)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
-                    .background(visual.color.copy(alpha = 0.15f)),
+                    .background(accentSoftColor.copy(alpha = 0.95f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = visual.icon,
+                    imageVector = Icons.Outlined.Language,
                     contentDescription = null,
-                    tint = visual.color,
-                    modifier = Modifier.size(24.dp),
+                    tint = accentColor,
+                    modifier = Modifier.size(18.dp),
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = visual.title,
+                    text = "DOMINIO DETECTADO",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = QrTextSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = domain,
                     style = MaterialTheme.typography.titleMedium,
                     color = QrTextPrimary,
                     fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = visual.subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = QrTextSecondary,
                 )
             }
         }
     }
 }
 
-private data class ResultVisualModel(
+@Composable
+private fun ResultActions(
+    riskType: ResultRiskType,
+    onShowIdle: () -> Unit,
+    onOpenLink: () -> Unit,
+) {
+    when (riskType) {
+        ResultRiskType.Safe -> {
+            PrimaryActionButton(
+                text = "Abrir enlace",
+                icon = Icons.Outlined.OpenInNew,
+                onClick = onOpenLink,
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            SecondaryActionButton(
+                text = "Volver al inicio",
+                onClick = onShowIdle,
+            )
+        }
+
+        ResultRiskType.Suspicious,
+        ResultRiskType.Dangerous -> {
+            PrimaryActionButton(
+                text = "Volver al inicio",
+                icon = Icons.Outlined.Home,
+                onClick = onShowIdle,
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = "Entiendo el riesgo, abrir enlace",
+                style = MaterialTheme.typography.bodyMedium,
+                color = QrGreenDark,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable(onClick = onOpenLink),
+            )
+        }
+    }
+}
+
+private enum class ResultRiskType {
+    Safe,
+    Suspicious,
+    Dangerous,
+}
+
+private data class AnalysisResultUiModel(
+    val riskType: ResultRiskType,
     val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
-    val color: Color,
-    val backgroundColor: Color,
+    val description: String,
+    val accentColor: Color,
+    val softColor: Color,
+    val heroIcon: ImageVector,
 )
 
-private fun buildRiskVisual(riskLevel: String, analysisStatus: String): ResultVisualModel {
-    val normalized = "${riskLevel.trim()} ${analysisStatus.trim()}".lowercase()
+private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): AnalysisResultUiModel {
+    val normalized = "${result.riskLevel.trim()} ${result.analysisStatus.trim()}".lowercase()
 
     return when {
         normalized.contains("danger") ||
             normalized.contains("malicious") ||
             normalized.contains("phishing") ||
-            normalized.contains("high") -> ResultVisualModel(
-            title = "Riesgo alto detectado",
-            subtitle = "Evita abrir este enlace y compruébalo manualmente.",
-            icon = Icons.Outlined.ErrorOutline,
-            color = QrDanger,
-            backgroundColor = QrDangerSoft,
+            normalized.contains("high") -> AnalysisResultUiModel(
+            riskType = ResultRiskType.Dangerous,
+            title = "Peligrosa",
+            description = pickResultDescription(
+                summary = result.summary,
+                fallback = "Detectamos una amenaza de seguridad inminente en este enlace.",
+            ),
+            accentColor = QrDanger,
+            softColor = QrDangerSoft,
+            heroIcon = Icons.Outlined.ErrorOutline,
         )
 
         normalized.contains("suspicious") ||
             normalized.contains("medium") ||
-            normalized.contains("unknown") -> ResultVisualModel(
-            title = "Riesgo medio o dudoso",
-            subtitle = "Revísalo con cuidado antes de continuar.",
-            icon = Icons.Outlined.Info,
-            color = QrSuspicious,
-            backgroundColor = QrSuspiciousSoft,
+            normalized.contains("unknown") -> AnalysisResultUiModel(
+            riskType = ResultRiskType.Suspicious,
+            title = "Sospechoso",
+            description = pickResultDescription(
+                summary = result.summary,
+                fallback = "Detectamos señales que requieren precaucion antes de abrir este enlace.",
+            ),
+            accentColor = QrSuspicious,
+            softColor = QrSuspiciousSoft,
+            heroIcon = Icons.Outlined.Info,
         )
 
-        else -> ResultVisualModel(
-            title = "Sin señales críticas",
-            subtitle = "No se detectó un riesgo alto en este análisis.",
-            icon = Icons.Outlined.Security,
-            color = QrGreenDark,
-            backgroundColor = QrGreenSoft,
+        else -> AnalysisResultUiModel(
+            riskType = ResultRiskType.Safe,
+            title = "Segura",
+            description = pickResultDescription(
+                summary = result.summary,
+                fallback = "No se han detectado amenazas inmediatas en este destino.",
+            ),
+            accentColor = QrGreenDark,
+            softColor = QrGreenSoft,
+            heroIcon = Icons.Outlined.Security,
         )
+    }
+}
+
+private fun pickResultDescription(summary: String, fallback: String): String {
+    val cleanSummary = summary.trim()
+    if (cleanSummary.isBlank()) return fallback
+    if (cleanSummary.length > 140) return fallback
+    return cleanSummary
+}
+
+private fun extractDisplayDomain(url: String?): String {
+    val cleanUrl = url?.trim().orEmpty()
+    if (cleanUrl.isBlank()) return "dominio-no-disponible"
+
+    return try {
+        val host = Uri.parse(cleanUrl).host?.removePrefix("www.")?.trim().orEmpty()
+        if (host.isNotBlank()) host else cleanUrl.take(48)
+    } catch (exception: Exception) {
+        cleanUrl.take(48)
     }
 }
 

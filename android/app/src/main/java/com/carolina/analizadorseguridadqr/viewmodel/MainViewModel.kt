@@ -112,6 +112,7 @@ class MainViewModel(
                     riskLevel = response.riskLevel,
                     analysisStatus = response.analysisStatus,
                     summary = response.summary,
+                    analyzedUrl = url,
                 )
             } catch (exception: IOException) {
                 // Error controlado de red: warning para diagnóstico sin marcar fallo crítico.
