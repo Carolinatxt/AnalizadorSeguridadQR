@@ -88,7 +88,7 @@ fun MainScreen(
         )
         is ScanUiState.Error -> ErrorStateScreen(
             message = uiState.message,
-            onRetry = onRetryAnalysis,
+            onStartScan = onStartScan,
             onShowIdle = onShowIdle,
         )
         // ReadyToAnalyze es transitorio; visualmente usamos la pantalla de carga.
@@ -261,7 +261,7 @@ private fun NotWebUrlStateScreen(
 @Composable
 private fun ErrorStateScreen(
     message: String,
-    onRetry: () -> Unit,
+    onStartScan: () -> Unit,
     onShowIdle: () -> Unit,
 ) {
     val subtitle = if (message.isBlank() || message.length > 130) {
@@ -278,9 +278,9 @@ private fun ErrorStateScreen(
         illustration = { AnalysisErrorIllustration() },
         title = "No se puede analizar el enlace ahora mismo",
         subtitle = subtitle,
-        primaryText = "Reintentar",
-        primaryIcon = null,
-        onPrimaryClick = onRetry,
+        primaryText = "Escanear otro QR",
+        primaryIcon = Icons.Outlined.QrCode2,
+        onPrimaryClick = onStartScan,
         secondaryText = "Volver al inicio",
         onSecondaryClick = onShowIdle,
     )

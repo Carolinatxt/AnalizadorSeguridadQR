@@ -1,36 +1,51 @@
 package com.carolina.analizadorseguridadqr
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanner
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
+import androidx.compose.runtime.getValue
+import androidx.core.content.ContextCompat
 import com.carolina.analizadorseguridadqr.ui.screen.MainScreen
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
 import com.carolina.analizadorseguridadqr.viewmodel.MainViewModel
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 
-// Activity mínima: conecta ViewModel + Compose.
-// Aquí no metemos lógica de negocio, solo coordinación de UI.
+// Activity minima: conecta ViewModel + Compose.
+// Aqui no metemos logica de negocio, solo coordinacion de UI.
 class MainActivity : ComponentActivity() {
-    companion object {
-        private const val TAG = "MainActivity"
-    }
-
     // El ViewModel vive asociado al ciclo de vida de esta Activity.
     private val viewModel: MainViewModel by viewModels()
-    private lateinit var scanner: GmsBarcodeScanner
+
+    private val qrScannerLauncher = registerForActivityResult(ScanContract()) { result ->
+        val content = result.contents?.trim()
+        if (content.isNullOrEmpty()) {
+            viewModel.showIdle()
+            return@registerForActivityResult
+        }
+
+        viewModel.onScanResult(content)
+    }
+
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchScanner()
+        } else {
+            viewModel.showError("Permite el acceso a la camara para escanear codigos QR.")
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setupScanner()
 
         setContent {
             AnalizadorSeguridadQRTheme {
@@ -48,28 +63,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun setupScanner() {
-        val options = GmsBarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-            .build()
-
-        scanner = GmsBarcodeScanning.getClient(this, options)
-    }
-
-    // La Activity solo lanza escáner y delega el resultado al ViewModel.
+    // La Activity solo lanza escaner y delega el resultado al ViewModel.
     private fun startScan() {
         viewModel.onScanButtonClicked()
 
-        scanner.startScan()
-            .addOnSuccessListener { barcode ->
-                viewModel.onScanResult(barcode.rawValue)
-            }
-            .addOnCanceledListener {
-                viewModel.showIdle()
-            }
-            .addOnFailureListener { error ->
-                Log.w(TAG, "Fallo al escanear QR: ${error.message}", error)
-                viewModel.showError("No se pudo completar el escaneo. Inténtalo de nuevo.")
-            }
+        val hasCameraPermission = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasCameraPermission) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            return
+        }
+
+        launchScanner()
+    }
+
+    private fun launchScanner() {
+        val options = ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setPrompt("Enfoca el codigo QR")
+            setBeepEnabled(false)
+            setBarcodeImageEnabled(false)
+            setOrientationLocked(false)
+        }
+
+        qrScannerLauncher.launch(options)
     }
 }

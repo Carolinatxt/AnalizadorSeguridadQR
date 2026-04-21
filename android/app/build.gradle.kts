@@ -55,7 +55,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     // Necesario para iconos Outlined usados en la UI (prototipo).
     implementation("androidx.compose.material:material-icons-extended")
-    implementation(libs.google.play.services.code.scanner)
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

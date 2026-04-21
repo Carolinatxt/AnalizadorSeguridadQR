@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Solo para desarrollo local por USB + adb reverse con http://127.0.0.1:8000 -->
     <!-- En producción debe usarse HTTPS y desactivar cleartextTraffic. -->
