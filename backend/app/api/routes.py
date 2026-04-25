@@ -71,17 +71,6 @@ async def analyze_url(request: Request, payload: AnalyzeUrlRequest) -> AnalyzeUr
             outcome.ipqs.raw_summary,
         )
 
-    if outcome.response.analysis_status == "unavailable":
-        logger.warning(
-            "Analisis unavailable: Web Risk e IPQS no disponibles | request_id=%s",
-            request_id,
-        )
-    elif outcome.response.analysis_status == "partial":
-        logger.warning(
-            "Analisis partial: una API externa no estuvo disponible | request_id=%s",
-            request_id,
-        )
-
     logger.info(
         "Resultado de analisis | request_id=%s | risk_level=%s | analysis_status=%s | duration_ms=%s",
         request_id,

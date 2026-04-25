@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass
 
 from app.core.config import ANALYSIS_TOTAL_TIMEOUT_SECONDS
-from app.domain.analysis_rules import _build_response
+from app.domain.analysis_rules import build_response
 from app.models.schemas import AnalyzeUrlResponse
 from app.services.ipqs_service import check_url_with_ipqs
 from app.services.provider_results import IpqsResult, WebRiskResult
@@ -24,8 +24,6 @@ def _normalize_web_risk_result(
     result: WebRiskResult | BaseException,
     request_id: str | None = None,
 ) -> WebRiskResult:
-    if isinstance(result, asyncio.CancelledError):
-        raise result
     if isinstance(result, Exception):
         logger.error(
             "Excepcion no capturada en Web Risk | request_id=%s",
@@ -42,8 +40,6 @@ def _normalize_ipqs_result(
     result: IpqsResult | BaseException,
     request_id: str | None = None,
 ) -> IpqsResult:
-    if isinstance(result, asyncio.CancelledError):
-        raise result
     if isinstance(result, Exception):
         logger.error(
             "Excepcion no capturada en IPQS | request_id=%s",
@@ -77,7 +73,7 @@ async def analyze_url_with_providers(
         timeout_web_risk = WebRiskResult.from_timeout_error(_TIMEOUT_SUMMARY)
         timeout_ipqs = IpqsResult.from_timeout_error(_TIMEOUT_SUMMARY)
         return AnalysisOutcome(
-            response=_build_response(timeout_web_risk, timeout_ipqs),
+            response=build_response(timeout_web_risk, timeout_ipqs),
             web_risk=timeout_web_risk,
             ipqs=timeout_ipqs,
         )
@@ -90,7 +86,7 @@ async def analyze_url_with_providers(
         ipqs_result,
         request_id=request_id,
     )
-    response = _build_response(normalized_web_risk, normalized_ipqs)
+    response = build_response(normalized_web_risk, normalized_ipqs)
 
     return AnalysisOutcome(
         response=response,

@@ -7,7 +7,7 @@ AnalysisStatus = Literal["complete", "partial", "unavailable"]
 _IPQS_DANGEROUS_SCORE_THRESHOLD: int = 85
 _IPQS_SAFE_SCORE_THRESHOLD: int = 60
 
-def _compute_analysis_status(
+def compute_analysis_status(
     web_risk: WebRiskResult,
     ipqs: IpqsResult,
 ) -> AnalysisStatus:
@@ -18,7 +18,7 @@ def _compute_analysis_status(
     return "complete"
 
 
-def _is_dangerous(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
+def is_dangerous(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
     # UNWANTED_SOFTWARE no eleva directamente a dangerous: se trata como
     # senal de riesgo medio que bloquea safe y mantiene clasificacion conservadora.
     web_risk_has_malware = "MALWARE" in web_risk.threat_types
@@ -32,7 +32,7 @@ def _is_dangerous(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
     return web_risk_has_malware or web_risk_has_social_engineering or ipqs_dangerous
 
 
-def _is_safe(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
+def is_safe(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
     web_risk_has_any_threat = len(web_risk.threat_types) > 0
     return (
         web_risk.available
@@ -48,8 +48,8 @@ def _is_safe(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
     )
 
 
-def _build_response(web_risk: WebRiskResult, ipqs: IpqsResult) -> AnalyzeUrlResponse:
-    analysis_status = _compute_analysis_status(web_risk, ipqs)
+def build_response(web_risk: WebRiskResult, ipqs: IpqsResult) -> AnalyzeUrlResponse:
+    analysis_status = compute_analysis_status(web_risk, ipqs)
     if analysis_status == "unavailable":
         return AnalyzeUrlResponse(
             risk_level="suspicious",
@@ -57,13 +57,13 @@ def _build_response(web_risk: WebRiskResult, ipqs: IpqsResult) -> AnalyzeUrlResp
             summary="No fue posible completar el análisis. Inténtalo de nuevo.",
         )
 
-    if _is_dangerous(web_risk, ipqs):
+    if is_dangerous(web_risk, ipqs):
         return AnalyzeUrlResponse(
             risk_level="dangerous",
             analysis_status=analysis_status,
             summary="Se detectaron señales de riesgo alto en esta URL.",
         )
-    if _is_safe(web_risk, ipqs):
+    if is_safe(web_risk, ipqs):
         return AnalyzeUrlResponse(
             risk_level="safe",
             analysis_status=analysis_status,
