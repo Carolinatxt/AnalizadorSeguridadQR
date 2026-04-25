@@ -34,7 +34,7 @@ async def analyze_url(request: Request, payload: AnalyzeUrlRequest) -> AnalyzeUr
 
     start_time = time.perf_counter()
     outcome = await analyze_url_with_providers(url, request_id=request_id)
-    duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+    duration_ms = int((time.perf_counter() - start_time) * 1000)
 
     logger.info(
         "Resultado Web Risk | request_id=%s | provider_status=%s | available=%s | match_found=%s | threat_types=%s",
@@ -56,6 +56,20 @@ async def analyze_url(request: Request, payload: AnalyzeUrlRequest) -> AnalyzeUr
         outcome.ipqs.suspicious,
         outcome.ipqs.unsafe,
     )
+    if outcome.web_risk.provider_status != "ok":
+        logger.warning(
+            "Proveedor Web Risk con resultado no utilizable | request_id=%s | provider_status=%s | raw_summary=%s",
+            request_id,
+            outcome.web_risk.provider_status,
+            outcome.web_risk.raw_summary,
+        )
+    if outcome.ipqs.provider_status != "ok":
+        logger.warning(
+            "Proveedor IPQS con resultado no utilizable | request_id=%s | provider_status=%s | raw_summary=%s",
+            request_id,
+            outcome.ipqs.provider_status,
+            outcome.ipqs.raw_summary,
+        )
 
     if outcome.response.analysis_status == "unavailable":
         logger.warning(

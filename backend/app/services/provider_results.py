@@ -5,6 +5,7 @@ ProviderStatus = Literal[
     "ok",
     "config_error",
     "http_error",
+    "network_error",
     "api_error",
     "parse_error",
     "internal_error",
@@ -14,6 +15,13 @@ ProviderStatus = Literal[
 
 @dataclass(frozen=True)
 class WebRiskResult:
+    """Resultado interno de proveedor Web Risk.
+
+    Nota: available=False significa que el resultado no es utilizable
+    para la decision final (p.ej. config/http/network/parse/api_error),
+    no necesariamente que el proveedor este completamente caido.
+    """
+
     provider_status: ProviderStatus
     available: bool
     match_found: bool
@@ -65,6 +73,19 @@ class WebRiskResult:
         )
 
     @classmethod
+    def from_network_error(
+        cls,
+        summary: str = "error de red o timeout de transporte",
+    ) -> "WebRiskResult":
+        return cls(
+            provider_status="network_error",
+            available=False,
+            match_found=False,
+            threat_types=(),
+            raw_summary=summary,
+        )
+
+    @classmethod
     def from_internal_error(cls, summary: str = "error de consulta") -> "WebRiskResult":
         return cls(
             provider_status="internal_error",
@@ -98,6 +119,13 @@ class WebRiskResult:
 
 @dataclass(frozen=True)
 class IpqsResult:
+    """Resultado interno de proveedor IPQS.
+
+    Nota: available=False significa que el resultado no es utilizable
+    para la decision final (incluyendo api_error), no necesariamente
+    indisponibilidad tecnica total del proveedor.
+    """
+
     provider_status: ProviderStatus
     available: bool
     success: bool
@@ -154,6 +182,23 @@ class IpqsResult:
     ) -> "IpqsResult":
         return cls(
             provider_status="parse_error",
+            available=False,
+            success=False,
+            risk_score=None,
+            phishing=False,
+            malware=False,
+            suspicious=False,
+            unsafe=False,
+            raw_summary=summary,
+        )
+
+    @classmethod
+    def from_network_error(
+        cls,
+        summary: str = "error de red o timeout de transporte",
+    ) -> "IpqsResult":
+        return cls(
+            provider_status="network_error",
             available=False,
             success=False,
             risk_score=None,

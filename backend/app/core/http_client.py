@@ -15,6 +15,8 @@ async def init_http_client() -> None:
         return
 
     _http_client = httpx.AsyncClient(
+        # Timeouts de transporte HTTP del cliente.
+        # El timeout total del caso de uso se controla en analysis_service.
         timeout=httpx.Timeout(
             connect=5.0,
             read=10.0,

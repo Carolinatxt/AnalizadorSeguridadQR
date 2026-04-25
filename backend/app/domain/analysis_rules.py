@@ -4,6 +4,8 @@ from app.models.schemas import AnalyzeUrlResponse
 from app.services.provider_results import IpqsResult, WebRiskResult
 
 AnalysisStatus = Literal["complete", "partial", "unavailable"]
+_IPQS_DANGEROUS_SCORE_THRESHOLD: int = 85
+_IPQS_SAFE_SCORE_THRESHOLD: int = 60
 
 def _compute_analysis_status(
     web_risk: WebRiskResult,
@@ -17,12 +19,14 @@ def _compute_analysis_status(
 
 
 def _is_dangerous(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
+    # UNWANTED_SOFTWARE no eleva directamente a dangerous: se trata como
+    # senal de riesgo medio que bloquea safe y mantiene clasificacion conservadora.
     web_risk_has_malware = "MALWARE" in web_risk.threat_types
     web_risk_has_social_engineering = "SOCIAL_ENGINEERING" in web_risk.threat_types
     ipqs_dangerous = (
         (ipqs.phishing or ipqs.malware)
         and ipqs.risk_score is not None
-        and ipqs.risk_score >= 85
+        and ipqs.risk_score >= _IPQS_DANGEROUS_SCORE_THRESHOLD
     )
 
     return web_risk_has_malware or web_risk_has_social_engineering or ipqs_dangerous
@@ -36,7 +40,7 @@ def _is_safe(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
         and (not web_risk_has_any_threat)
         and ipqs.success
         and ipqs.risk_score is not None
-        and ipqs.risk_score < 60
+        and ipqs.risk_score < _IPQS_SAFE_SCORE_THRESHOLD
         and (not ipqs.phishing)
         and (not ipqs.malware)
         and (not ipqs.suspicious)

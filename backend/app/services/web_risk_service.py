@@ -9,6 +9,8 @@ from app.services.provider_results import WebRiskResult
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
+# Allowlist conservadora alineada con reglas actuales del motor de decision.
+# Tipos nuevos del proveedor deben evaluarse explicitamente antes de incluirse.
 _ALLOWED_THREAT_TYPES = frozenset({
     "MALWARE",
     "SOCIAL_ENGINEERING",
@@ -96,7 +98,7 @@ async def check_url_with_web_risk(
             "Error HTTP al consultar Web Risk | request_id=%s",
             request_id,
         )
-        return WebRiskResult.from_http_error(summary="error de red o timeout")
+        return WebRiskResult.from_network_error()
     except Exception:
         logger.exception(
             "Error inesperado al consultar Web Risk | request_id=%s",

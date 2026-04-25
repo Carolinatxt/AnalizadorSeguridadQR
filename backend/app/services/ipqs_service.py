@@ -121,7 +121,7 @@ async def check_url_with_ipqs(
             "Error HTTP al consultar IPQS | request_id=%s",
             request_id,
         )
-        return IpqsResult.from_http_error(summary="error de red o timeout")
+        return IpqsResult.from_network_error()
     except Exception:
         logger.exception(
             "Error inesperado al consultar IPQS | request_id=%s",

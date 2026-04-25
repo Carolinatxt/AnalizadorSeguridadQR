@@ -2,6 +2,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 
+from app.core.config import ANALYSIS_TOTAL_TIMEOUT_SECONDS
 from app.domain.analysis_rules import _build_response
 from app.models.schemas import AnalyzeUrlResponse
 from app.services.ipqs_service import check_url_with_ipqs
@@ -57,7 +58,7 @@ async def analyze_url_with_providers(
                 check_url_with_ipqs(url, request_id=request_id),
                 return_exceptions=True,
             ),
-            timeout=12.0,
+            timeout=ANALYSIS_TOTAL_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
         logger.error(

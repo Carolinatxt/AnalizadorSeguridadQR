@@ -1,8 +1,10 @@
 import os
+import logging
 
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 def _clean_env_value(value: str | None) -> str | None:
@@ -10,6 +12,30 @@ def _clean_env_value(value: str | None) -> str | None:
         return None
     normalized = value.strip()
     return normalized or None
+
+
+def _get_positive_float_from_env(var_name: str, default: float) -> float:
+    raw_value = _clean_env_value(os.getenv(var_name))
+    if raw_value is None:
+        return default
+    try:
+        parsed_value = float(raw_value)
+    except ValueError:
+        logger.warning(
+            "%s invalida en entorno; se usa valor por defecto %s",
+            var_name,
+            default,
+        )
+        return default
+
+    if parsed_value <= 0:
+        logger.warning(
+            "%s debe ser > 0; se usa valor por defecto %s",
+            var_name,
+            default,
+        )
+        return default
+    return parsed_value
 
 
 WEBRISK_API_KEY: str | None = _clean_env_value(
@@ -21,3 +47,9 @@ IPQS_API_KEY: str | None = _clean_env_value(os.getenv("IPQS_API_KEY"))
 # cada solicitud consume cuota de proveedores externos (Web Risk + IPQS)
 # y ayuda a mitigar abuso del endpoint.
 RATE_LIMIT_ANALYZE: str = "30/minute"
+
+# Politica de seguridad para tiempo maximo total del caso de uso /analyze.
+ANALYSIS_TOTAL_TIMEOUT_SECONDS: float = _get_positive_float_from_env(
+    "ANALYSIS_TOTAL_TIMEOUT_SECONDS",
+    default=12.0,
+)
