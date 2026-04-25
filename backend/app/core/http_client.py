@@ -15,7 +15,13 @@ async def init_http_client() -> None:
         return
 
     _http_client = httpx.AsyncClient(
-        timeout=httpx.Timeout(10.0),
+        timeout=httpx.Timeout(
+            connect=5.0,
+            read=10.0,
+            write=10.0,
+            pool=5.0,
+        ),
+        follow_redirects=False,
         limits=httpx.Limits(
             max_connections=100,
             max_keepalive_connections=20,

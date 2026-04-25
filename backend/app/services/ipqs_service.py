@@ -1,8 +1,11 @@
 import logging
 from urllib.parse import quote, urlsplit
 
+import httpx
+
 from app.core.config import IPQS_API_KEY
 from app.core.http_client import get_http_client
+from app.services.provider_results import IpqsResult
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
@@ -24,20 +27,10 @@ def _to_int_or_none(value: object) -> int | None:
         return None
 
 
-async def check_url_with_ipqs(url: str) -> dict:
+async def check_url_with_ipqs(url: str) -> IpqsResult:
     if not IPQS_API_KEY:
         logger.warning("IPQS_API_KEY no configurada; no se puede consultar IPQS")
-        return {
-            "provider_status": "error",
-            "available": False,
-            "success": False,
-            "risk_score": None,
-            "phishing": False,
-            "malware": False,
-            "suspicious": False,
-            "unsafe": False,
-            "raw_summary": "IPQS_API_KEY no configurada",
-        }
+        return IpqsResult.from_unavailable("IPQS_API_KEY no configurada")
 
     analysis_url = remove_url_fragment(url)
     encoded_url = quote(analysis_url, safe="")
@@ -59,17 +52,7 @@ async def check_url_with_ipqs(url: str) -> dict:
                 "Error HTTP al consultar IPQS | status_code=%s",
                 response.status_code,
             )
-            return {
-                "provider_status": "error",
-                "available": False,
-                "success": False,
-                "risk_score": None,
-                "phishing": False,
-                "malware": False,
-                "suspicious": False,
-                "unsafe": False,
-                "raw_summary": f"IPQS HTTP {response.status_code}",
-            }
+            return IpqsResult.from_http_error(response.status_code)
 
         data = response.json()
         success = _to_bool(data.get("success"))
@@ -81,17 +64,13 @@ async def check_url_with_ipqs(url: str) -> dict:
 
         if not success:
             logger.warning("IPQS respondio success=false | host=%s", host)
-            return {
-                "provider_status": "api_error",
-                "available": False,
-                "success": False,
-                "risk_score": risk_score,
-                "phishing": phishing,
-                "malware": malware,
-                "suspicious": suspicious,
-                "unsafe": unsafe,
-                "raw_summary": "respuesta de proveedor sin exito",
-            }
+            return IpqsResult.from_api_error(
+                risk_score=risk_score,
+                phishing=phishing,
+                malware=malware,
+                suspicious=suspicious,
+                unsafe=unsafe,
+            )
 
         logger.info(
             "Respuesta IPQS correcta | host=%s | risk_score=%s | phishing=%s | malware=%s | suspicious=%s | unsafe=%s",
@@ -102,30 +81,19 @@ async def check_url_with_ipqs(url: str) -> dict:
             suspicious,
             unsafe,
         )
-        return {
-            "provider_status": "ok",
-            "available": True,
-            "success": True,
-            "risk_score": risk_score,
-            "phishing": phishing,
-            "malware": malware,
-            "suspicious": suspicious,
-            "unsafe": unsafe,
-            "raw_summary": "analisis completado",
-        }
+        return IpqsResult.from_success(
+            risk_score=risk_score,
+            phishing=phishing,
+            malware=malware,
+            suspicious=suspicious,
+            unsafe=unsafe,
+        )
 
     except RuntimeError:
         raise
+    except httpx.HTTPError:
+        logger.exception("Error HTTP al consultar IPQS")
+        return IpqsResult.from_internal_error("error de consulta")
     except Exception:
         logger.exception("Error inesperado al consultar IPQS")
-        return {
-            "provider_status": "error",
-            "available": False,
-            "success": False,
-            "risk_score": None,
-            "phishing": False,
-            "malware": False,
-            "suspicious": False,
-            "unsafe": False,
-            "raw_summary": "error de consulta",
-        }
+        return IpqsResult.from_internal_error("error de consulta")

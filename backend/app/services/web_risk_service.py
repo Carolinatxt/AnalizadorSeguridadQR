@@ -1,22 +1,19 @@
 import logging
 from urllib.parse import quote, urlsplit
 
+import httpx
+
 from app.core.config import WEBRISK_API_KEY
 from app.core.http_client import get_http_client
+from app.services.provider_results import WebRiskResult
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
 
-async def check_url_with_web_risk(url: str) -> dict:
+async def check_url_with_web_risk(url: str) -> WebRiskResult:
     if not WEBRISK_API_KEY:
         logger.warning("WEBRISK_API_KEY no configurada; no se puede consultar Web Risk")
-        return {
-            "provider_status": "error",
-            "available": False,
-            "match_found": False,
-            "threat_types": [],
-            "raw_summary": "WEBRISK_API_KEY no configurada"
-        }
+        return WebRiskResult.from_unavailable("WEBRISK_API_KEY no configurada")
 
     analysis_url = remove_url_fragment(url)
     encoded_url = quote(analysis_url, safe="")
@@ -42,13 +39,7 @@ async def check_url_with_web_risk(url: str) -> dict:
                 "Error HTTP al consultar Web Risk | status_code=%s",
                 response.status_code,
             )
-            return {
-                "provider_status": "error",
-                "available": False,
-                "match_found": False,
-                "threat_types": [],
-                "raw_summary": f"Web Risk HTTP {response.status_code}"
-            }
+            return WebRiskResult.from_http_error(response.status_code)
 
         data = response.json()
 
@@ -63,22 +54,13 @@ async def check_url_with_web_risk(url: str) -> dict:
         else:
             logger.info("Web Risk sin coincidencias para la URL analizada")
 
-        return {
-            "provider_status": "ok",
-            "available": True,
-            "match_found": len(threat_types) > 0,
-            "threat_types": threat_types,
-            "raw_summary": "match encontrado" if threat_types else "sin coincidencia"
-        }
+        return WebRiskResult.from_success(threat_types)
 
     except RuntimeError:
         raise
+    except httpx.HTTPError:
+        logger.exception("Error HTTP al consultar Web Risk")
+        return WebRiskResult.from_internal_error("error de consulta")
     except Exception:
         logger.exception("Error inesperado al consultar Web Risk")
-        return {
-            "provider_status": "error",
-            "available": False,
-            "match_found": False,
-            "threat_types": [],
-            "raw_summary": "error de consulta"
-        }
+        return WebRiskResult.from_internal_error("error de consulta")
