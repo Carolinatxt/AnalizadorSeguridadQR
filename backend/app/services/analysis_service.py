@@ -10,6 +10,7 @@ from app.services.provider_results import IpqsResult, WebRiskResult
 from app.services.web_risk_service import check_url_with_web_risk
 
 logger = logging.getLogger(__name__)
+_TIMEOUT_SUMMARY = "timeout total del analisis"
 
 
 @dataclass(frozen=True)
@@ -20,9 +21,11 @@ class AnalysisOutcome:
 
 
 def _normalize_web_risk_result(
-    result: WebRiskResult | Exception,
+    result: WebRiskResult | BaseException,
     request_id: str | None = None,
 ) -> WebRiskResult:
+    if isinstance(result, asyncio.CancelledError):
+        raise result
     if isinstance(result, Exception):
         logger.error(
             "Excepcion no capturada en Web Risk | request_id=%s",
@@ -30,13 +33,17 @@ def _normalize_web_risk_result(
             exc_info=result,
         )
         return WebRiskResult.from_internal_error("excepcion interna")
+    if isinstance(result, BaseException):
+        raise result
     return result
 
 
 def _normalize_ipqs_result(
-    result: IpqsResult | Exception,
+    result: IpqsResult | BaseException,
     request_id: str | None = None,
 ) -> IpqsResult:
+    if isinstance(result, asyncio.CancelledError):
+        raise result
     if isinstance(result, Exception):
         logger.error(
             "Excepcion no capturada en IPQS | request_id=%s",
@@ -44,6 +51,8 @@ def _normalize_ipqs_result(
             exc_info=result,
         )
         return IpqsResult.from_internal_error("excepcion interna")
+    if isinstance(result, BaseException):
+        raise result
     return result
 
 
@@ -65,8 +74,8 @@ async def analyze_url_with_providers(
             "Timeout total del analisis | request_id=%s",
             request_id,
         )
-        timeout_web_risk = WebRiskResult.from_timeout_error("timeout total del analisis")
-        timeout_ipqs = IpqsResult.from_timeout_error("timeout total del analisis")
+        timeout_web_risk = WebRiskResult.from_timeout_error(_TIMEOUT_SUMMARY)
+        timeout_ipqs = IpqsResult.from_timeout_error(_TIMEOUT_SUMMARY)
         return AnalysisOutcome(
             response=_build_response(timeout_web_risk, timeout_ipqs),
             web_risk=timeout_web_risk,

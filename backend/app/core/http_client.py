@@ -26,6 +26,8 @@ async def init_http_client() -> None:
         headers={
             "User-Agent": "AnalizadorSeguridadQR-Backend/1.0",
         },
+        # Seguridad: no seguir redirecciones reduce superficie SSRF y evita
+        # solicitudes encadenadas a destinos no previstos por la politica.
         follow_redirects=False,
         limits=httpx.Limits(
             max_connections=100,

@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from app.api.routes import router
-from app.core.http_client import close_http_client, init_http_client
+from app.core.http_client import close_http_client, get_http_client, init_http_client
 from app.core.logging_config import configure_logging
 from app.core.rate_limiter import limiter
 
@@ -17,9 +17,19 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    await init_http_client()
-    yield
-    await close_http_client()
+    try:
+        await init_http_client()
+        get_http_client()
+        logger.info("Cliente HTTP global inicializado correctamente")
+    except Exception:
+        logger.exception("Fallo al inicializar cliente HTTP global; se aborta el arranque")
+        raise
+
+    try:
+        yield
+    finally:
+        await close_http_client()
+        logger.info("Cliente HTTP global cerrado")
 
 
 app = FastAPI(title="AnalizadorSeguridadQR API", lifespan=lifespan)
@@ -81,6 +91,24 @@ async def rate_limit_exceeded_handler(
     return JSONResponse(
         status_code=429,
         content={"detail": "Demasiadas solicitudes. Inténtalo de nuevo más tarde."},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    logger.exception(
+        "Excepcion no controlada | request_id=%s | method=%s | path=%s",
+        getattr(request.state, "request_id", None),
+        request.method,
+        request.url.path,
+        exc_info=exc,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Error interno del servidor"},
     )
 
 

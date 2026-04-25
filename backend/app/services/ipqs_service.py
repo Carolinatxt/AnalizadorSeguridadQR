@@ -9,6 +9,7 @@ from app.services.provider_results import IpqsResult
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
+# TODO: mover logs nominales de proveedor a DEBUG en produccion estable.
 
 def _to_bool(value: object) -> bool:
     if isinstance(value, bool):
@@ -25,6 +26,24 @@ def _to_int_or_none(value: object) -> int | None:
         return int(value) if value is not None else None
     except (TypeError, ValueError):
         return None
+
+
+def _normalize_risk_score(
+    value: int | None,
+    request_id: str | None = None,
+    host: str | None = None,
+) -> int | None:
+    if value is None:
+        return None
+    if 0 <= value <= 100:
+        return value
+    logger.warning(
+        "IPQS devolvio risk_score fuera de rango [0,100] y se descarta | request_id=%s | host=%s | risk_score=%s",
+        request_id,
+        host,
+        value,
+    )
+    return None
 
 
 async def check_url_with_ipqs(
@@ -76,7 +95,11 @@ async def check_url_with_ipqs(
             return IpqsResult.from_parse_error("respuesta no valida del proveedor")
 
         success = _to_bool(data.get("success"))
-        risk_score = _to_int_or_none(data.get("risk_score"))
+        risk_score = _normalize_risk_score(
+            _to_int_or_none(data.get("risk_score")),
+            request_id=request_id,
+            host=host,
+        )
         phishing = _to_bool(data.get("phishing"))
         malware = _to_bool(data.get("malware"))
         suspicious = _to_bool(data.get("suspicious"))

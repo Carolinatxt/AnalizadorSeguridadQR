@@ -9,6 +9,7 @@ from app.services.provider_results import WebRiskResult
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
+# TODO: mover logs nominales de proveedor a DEBUG en produccion estable.
 # Allowlist conservadora alineada con reglas actuales del motor de decision.
 # Tipos nuevos del proveedor deben evaluarse explicitamente antes de incluirse.
 _ALLOWED_THREAT_TYPES = frozenset({
@@ -16,6 +17,23 @@ _ALLOWED_THREAT_TYPES = frozenset({
     "SOCIAL_ENGINEERING",
     "UNWANTED_SOFTWARE",
 })
+
+
+def _normalize_threat_types(raw_threat_types: list[object]) -> list[str]:
+    if not isinstance(raw_threat_types, list):
+        return []
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for threat_type in raw_threat_types:
+        if not isinstance(threat_type, str):
+            continue
+        if threat_type not in _ALLOWED_THREAT_TYPES:
+            continue
+        if threat_type in seen:
+            continue
+        seen.add(threat_type)
+        normalized.append(threat_type)
+    return normalized
 
 async def check_url_with_web_risk(
     url: str,
@@ -71,11 +89,7 @@ async def check_url_with_web_risk(
 
         threat = data.get("threat")
         raw_threat_types = threat.get("threatTypes", []) if threat else []
-        threat_types = [
-            threat_type
-            for threat_type in raw_threat_types
-            if isinstance(threat_type, str) and threat_type in _ALLOWED_THREAT_TYPES
-        ]
+        threat_types = _normalize_threat_types(raw_threat_types)
 
         if threat_types:
             logger.warning(

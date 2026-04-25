@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 ProviderStatus = Literal[
@@ -25,7 +25,7 @@ class WebRiskResult:
     provider_status: ProviderStatus
     available: bool
     match_found: bool
-    threat_types: tuple[str, ...] = field(default_factory=tuple)
+    threat_types: tuple[str, ...] = ()
     raw_summary: str = ""
 
     @classmethod
@@ -41,22 +41,14 @@ class WebRiskResult:
     @classmethod
     def from_http_error(
         cls,
-        status_code: int | None = None,
-        summary: str | None = None,
+        status_code: int,
     ) -> "WebRiskResult":
-        resolved_summary = summary
-        if resolved_summary is None:
-            resolved_summary = (
-                f"Web Risk HTTP {status_code}"
-                if status_code is not None
-                else "error HTTP al consultar Web Risk"
-            )
         return cls(
             provider_status="http_error",
             available=False,
             match_found=False,
             threat_types=(),
-            raw_summary=resolved_summary,
+            raw_summary=f"Web Risk HTTP {status_code}",
         )
 
     @classmethod
@@ -153,16 +145,8 @@ class IpqsResult:
     @classmethod
     def from_http_error(
         cls,
-        status_code: int | None = None,
-        summary: str | None = None,
+        status_code: int,
     ) -> "IpqsResult":
-        resolved_summary = summary
-        if resolved_summary is None:
-            resolved_summary = (
-                f"IPQS HTTP {status_code}"
-                if status_code is not None
-                else "error HTTP al consultar IPQS"
-            )
         return cls(
             provider_status="http_error",
             available=False,
@@ -172,7 +156,7 @@ class IpqsResult:
             malware=False,
             suspicious=False,
             unsafe=False,
-            raw_summary=resolved_summary,
+            raw_summary=f"IPQS HTTP {status_code}",
         )
 
     @classmethod

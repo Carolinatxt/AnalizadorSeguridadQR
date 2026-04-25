@@ -69,6 +69,9 @@ def _build_response(web_risk: WebRiskResult, ipqs: IpqsResult) -> AnalyzeUrlResp
             analysis_status=analysis_status,
             summary="No se detectaron señales de riesgo en esta URL.",
         )
+    # Fallback deliberado a suspicious:
+    # riesgo medio en escenario de analisis parcial o evidencia insuficiente.
+    # Evita falsos "safe" cuando hay incertidumbre operativa o senales ambiguas.
     return AnalyzeUrlResponse(
         risk_level="suspicious",
         analysis_status=analysis_status,
