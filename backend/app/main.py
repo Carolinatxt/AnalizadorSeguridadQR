@@ -45,6 +45,7 @@ async def request_validation_exception_handler(
         sanitized_errors,
     )
 
+    # Contrato estable hacia cliente: respuesta minima; detalle tecnico solo en logs.
     return JSONResponse(
         status_code=422,
         content={"detail": "Datos de entrada no válidos"},

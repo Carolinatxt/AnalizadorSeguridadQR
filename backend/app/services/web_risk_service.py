@@ -32,9 +32,9 @@ async def check_url_with_web_risk(url: str) -> dict:
         ("threatTypes", "UNWANTED_SOFTWARE"),
     ]
     headers = {"X-Goog-Api-Key": WEBRISK_API_KEY}
-    client = get_http_client()
 
     try:
+        client = get_http_client()
         response = await client.get(endpoint, params=params, headers=headers)
 
         if response.status_code != 200:
@@ -71,6 +71,8 @@ async def check_url_with_web_risk(url: str) -> dict:
             "raw_summary": "match encontrado" if threat_types else "sin coincidencia"
         }
 
+    except RuntimeError:
+        raise
     except Exception:
         logger.exception("Error inesperado al consultar Web Risk")
         return {

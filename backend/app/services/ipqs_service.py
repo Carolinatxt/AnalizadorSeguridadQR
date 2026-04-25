@@ -49,9 +49,9 @@ async def check_url_with_ipqs(url: str) -> dict:
     # Limitacion del proveedor: IPQS exige API key en la ruta.
     # No registrar request_url evita exponer secretos en logs de aplicacion.
     request_url = f"{endpoint}/{IPQS_API_KEY}/{encoded_url}"
-    client = get_http_client()
 
     try:
+        client = get_http_client()
         response = await client.get(request_url)
 
         if response.status_code != 200:
@@ -114,6 +114,8 @@ async def check_url_with_ipqs(url: str) -> dict:
             "raw_summary": "analisis completado",
         }
 
+    except RuntimeError:
+        raise
     except Exception:
         logger.exception("Error inesperado al consultar IPQS")
         return {
