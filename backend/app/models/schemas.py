@@ -13,6 +13,8 @@ class AnalyzeUrlRequest(BaseModel):
         normalized = value.strip()
         if not normalized:
             raise ValueError("La URL no puede estar vacia")
+        if len(normalized) > 2048:
+            raise ValueError("La URL no puede superar 2048 caracteres")
 
         parsed = urlparse(normalized)
         if parsed.scheme not in {"http", "https"}:

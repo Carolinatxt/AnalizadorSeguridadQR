@@ -12,6 +12,30 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _web_risk_exception_result() -> dict:
+    return {
+        "provider_status": "error",
+        "available": False,
+        "match_found": False,
+        "threat_types": [],
+        "raw_summary": "excepcion interna",
+    }
+
+
+def _ipqs_exception_result() -> dict:
+    return {
+        "provider_status": "error",
+        "available": False,
+        "success": False,
+        "risk_score": None,
+        "phishing": False,
+        "malware": False,
+        "suspicious": False,
+        "unsafe": False,
+        "raw_summary": "excepcion interna",
+    }
+
+
 @router.post("/api/v1/analyze", response_model=AnalyzeUrlResponse)
 async def analyze_url(payload: AnalyzeUrlRequest) -> AnalyzeUrlResponse:
     # Llega validada por AnalyzeUrlRequest; aqui preservamos solo log funcional.
@@ -30,8 +54,20 @@ async def analyze_url(payload: AnalyzeUrlRequest) -> AnalyzeUrlResponse:
     web_risk_result, ipqs_result = await asyncio.gather(
         check_url_with_web_risk(url),
         check_url_with_ipqs(url),
-        return_exceptions=False,
+        return_exceptions=True,
     )
+    if isinstance(web_risk_result, Exception):
+        logger.error(
+            "Excepcion no capturada en Web Risk",
+            exc_info=web_risk_result,
+        )
+        web_risk_result = _web_risk_exception_result()
+    if isinstance(ipqs_result, Exception):
+        logger.error(
+            "Excepcion no capturada en IPQS",
+            exc_info=ipqs_result,
+        )
+        ipqs_result = _ipqs_exception_result()
 
     logger.info(
         "Resultado Web Risk | provider_status=%s | available=%s | match_found=%s | threat_types=%s",

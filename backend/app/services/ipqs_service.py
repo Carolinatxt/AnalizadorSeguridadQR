@@ -1,9 +1,8 @@
 import logging
 from urllib.parse import quote, urlsplit
 
-import httpx
-
 from app.core.config import IPQS_API_KEY
+from app.core.http_client import get_http_client
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
@@ -50,10 +49,10 @@ async def check_url_with_ipqs(url: str) -> dict:
     # Limitacion del proveedor: IPQS exige API key en la ruta.
     # No registrar request_url evita exponer secretos en logs de aplicacion.
     request_url = f"{endpoint}/{IPQS_API_KEY}/{encoded_url}"
+    client = get_http_client()
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(request_url)
+        response = await client.get(request_url)
 
         if response.status_code != 200:
             logger.error(

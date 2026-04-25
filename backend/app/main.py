@@ -1,15 +1,25 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.api.routes import router
+from app.core.http_client import close_http_client, init_http_client
 from app.core.logging_config import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="AnalizadorSeguridadQR API")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await init_http_client()
+    yield
+    await close_http_client()
+
+
+app = FastAPI(title="AnalizadorSeguridadQR API", lifespan=lifespan)
 
 app.include_router(router)
 

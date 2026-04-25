@@ -1,9 +1,8 @@
 import logging
 from urllib.parse import quote, urlsplit
 
-import httpx
-
 from app.core.config import WEBRISK_API_KEY
+from app.core.http_client import get_http_client
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
@@ -33,10 +32,10 @@ async def check_url_with_web_risk(url: str) -> dict:
         ("threatTypes", "UNWANTED_SOFTWARE"),
     ]
     headers = {"X-Goog-Api-Key": WEBRISK_API_KEY}
+    client = get_http_client()
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(endpoint, params=params, headers=headers)
+        response = await client.get(endpoint, params=params, headers=headers)
 
         if response.status_code != 200:
             logger.error(
