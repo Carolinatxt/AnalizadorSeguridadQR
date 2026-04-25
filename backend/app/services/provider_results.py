@@ -1,9 +1,12 @@
 from dataclasses import dataclass, field
+from typing import Literal
+
+ProviderStatus = Literal["ok", "error", "api_error"]
 
 
 @dataclass(frozen=True)
 class WebRiskResult:
-    provider_status: str
+    provider_status: ProviderStatus
     available: bool
     match_found: bool
     threat_types: tuple[str, ...] = field(default_factory=tuple)
@@ -41,7 +44,7 @@ class WebRiskResult:
 
 @dataclass(frozen=True)
 class IpqsResult:
-    provider_status: str
+    provider_status: ProviderStatus
     available: bool
     success: bool
     risk_score: int | None

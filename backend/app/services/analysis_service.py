@@ -18,35 +18,52 @@ class AnalysisOutcome:
     ipqs: IpqsResult
 
 
-def _normalize_web_risk_result(result: WebRiskResult | Exception) -> WebRiskResult:
+def _normalize_web_risk_result(
+    result: WebRiskResult | Exception,
+    request_id: str | None = None,
+) -> WebRiskResult:
     if isinstance(result, Exception):
         logger.error(
-            "Excepcion no capturada en Web Risk",
+            "Excepcion no capturada en Web Risk | request_id=%s",
+            request_id,
             exc_info=result,
         )
         return WebRiskResult.from_internal_error("excepcion interna")
     return result
 
 
-def _normalize_ipqs_result(result: IpqsResult | Exception) -> IpqsResult:
+def _normalize_ipqs_result(
+    result: IpqsResult | Exception,
+    request_id: str | None = None,
+) -> IpqsResult:
     if isinstance(result, Exception):
         logger.error(
-            "Excepcion no capturada en IPQS",
+            "Excepcion no capturada en IPQS | request_id=%s",
+            request_id,
             exc_info=result,
         )
         return IpqsResult.from_internal_error("excepcion interna")
     return result
 
 
-async def analyze_url_with_providers(url: str) -> AnalysisOutcome:
+async def analyze_url_with_providers(
+    url: str,
+    request_id: str | None = None,
+) -> AnalysisOutcome:
     web_risk_result, ipqs_result = await asyncio.gather(
-        check_url_with_web_risk(url),
-        check_url_with_ipqs(url),
+        check_url_with_web_risk(url, request_id=request_id),
+        check_url_with_ipqs(url, request_id=request_id),
         return_exceptions=True,
     )
 
-    normalized_web_risk = _normalize_web_risk_result(web_risk_result)
-    normalized_ipqs = _normalize_ipqs_result(ipqs_result)
+    normalized_web_risk = _normalize_web_risk_result(
+        web_risk_result,
+        request_id=request_id,
+    )
+    normalized_ipqs = _normalize_ipqs_result(
+        ipqs_result,
+        request_id=request_id,
+    )
     response = _build_response(normalized_web_risk, normalized_ipqs)
 
     return AnalysisOutcome(

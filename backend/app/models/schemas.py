@@ -29,3 +29,4 @@ class AnalyzeUrlResponse(BaseModel):
     risk_level: Literal["safe", "suspicious", "dangerous"]
     analysis_status: Literal["complete", "partial", "unavailable"]
     summary: str
+    # FUTURO: añadir details cuando frontend soporte explicabilidad avanzada.

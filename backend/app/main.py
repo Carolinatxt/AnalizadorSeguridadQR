@@ -1,4 +1,5 @@
 import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -27,6 +28,15 @@ app.state.limiter = limiter
 app.include_router(router)
 
 
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    request_id = uuid.uuid4().hex[:8]
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(
     request: Request,
@@ -42,7 +52,8 @@ async def request_validation_exception_handler(
         for err in exc.errors()
     ]
     logger.warning(
-        "Solicitud rechazada por validacion | method=%s | path=%s | errors=%s",
+        "Solicitud rechazada por validacion | request_id=%s | method=%s | path=%s | errors=%s",
+        getattr(request.state, "request_id", None),
         request.method,
         request.url.path,
         sanitized_errors,
@@ -61,7 +72,8 @@ async def rate_limit_exceeded_handler(
     _exc: RateLimitExceeded,
 ) -> JSONResponse:
     logger.warning(
-        "Rate limit excedido | method=%s | path=%s | client=%s",
+        "Rate limit excedido | request_id=%s | method=%s | path=%s | client=%s",
+        getattr(request.state, "request_id", None),
         request.method,
         request.url.path,
         request.client.host if request.client else "unknown",

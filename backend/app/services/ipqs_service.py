@@ -27,16 +27,26 @@ def _to_int_or_none(value: object) -> int | None:
         return None
 
 
-async def check_url_with_ipqs(url: str) -> IpqsResult:
+async def check_url_with_ipqs(
+    url: str,
+    request_id: str | None = None,
+) -> IpqsResult:
     if not IPQS_API_KEY:
-        logger.warning("IPQS_API_KEY no configurada; no se puede consultar IPQS")
+        logger.warning(
+            "IPQS_API_KEY no configurada; no se puede consultar IPQS | request_id=%s",
+            request_id,
+        )
         return IpqsResult.from_unavailable("IPQS_API_KEY no configurada")
 
     analysis_url = remove_url_fragment(url)
     encoded_url = quote(analysis_url, safe="")
     host = urlsplit(analysis_url).hostname
 
-    logger.info("Consultando IPQS | host=%s", host)
+    logger.info(
+        "Consultando IPQS | request_id=%s | host=%s",
+        request_id,
+        host,
+    )
 
     endpoint = "https://ipqualityscore.com/api/json/url"
     # Limitacion del proveedor: IPQS exige API key en la ruta.
@@ -49,12 +59,22 @@ async def check_url_with_ipqs(url: str) -> IpqsResult:
 
         if response.status_code != 200:
             logger.error(
-                "Error HTTP al consultar IPQS | status_code=%s",
+                "Error HTTP al consultar IPQS | request_id=%s | status_code=%s",
+                request_id,
                 response.status_code,
             )
             return IpqsResult.from_http_error(response.status_code)
 
-        data = response.json()
+        try:
+            data = response.json()
+        except ValueError:
+            logger.error(
+                "Respuesta no JSON valida de IPQS | request_id=%s | host=%s",
+                request_id,
+                host,
+            )
+            return IpqsResult.from_internal_error("respuesta no valida del proveedor")
+
         success = _to_bool(data.get("success"))
         risk_score = _to_int_or_none(data.get("risk_score"))
         phishing = _to_bool(data.get("phishing"))
@@ -63,7 +83,11 @@ async def check_url_with_ipqs(url: str) -> IpqsResult:
         unsafe = _to_bool(data.get("unsafe"))
 
         if not success:
-            logger.warning("IPQS respondio success=false | host=%s", host)
+            logger.warning(
+                "IPQS respondio success=false | request_id=%s | host=%s",
+                request_id,
+                host,
+            )
             return IpqsResult.from_api_error(
                 risk_score=risk_score,
                 phishing=phishing,
@@ -73,7 +97,8 @@ async def check_url_with_ipqs(url: str) -> IpqsResult:
             )
 
         logger.info(
-            "Respuesta IPQS correcta | host=%s | risk_score=%s | phishing=%s | malware=%s | suspicious=%s | unsafe=%s",
+            "Respuesta IPQS correcta | request_id=%s | host=%s | risk_score=%s | phishing=%s | malware=%s | suspicious=%s | unsafe=%s",
+            request_id,
             host,
             risk_score,
             phishing,
@@ -92,8 +117,14 @@ async def check_url_with_ipqs(url: str) -> IpqsResult:
     except RuntimeError:
         raise
     except httpx.HTTPError:
-        logger.exception("Error HTTP al consultar IPQS")
+        logger.exception(
+            "Error HTTP al consultar IPQS | request_id=%s",
+            request_id,
+        )
         return IpqsResult.from_internal_error("error de consulta")
     except Exception:
-        logger.exception("Error inesperado al consultar IPQS")
+        logger.exception(
+            "Error inesperado al consultar IPQS | request_id=%s",
+            request_id,
+        )
         return IpqsResult.from_internal_error("error de consulta")

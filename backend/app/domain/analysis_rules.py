@@ -1,8 +1,14 @@
+from typing import Literal
+
 from app.models.schemas import AnalyzeUrlResponse
 from app.services.provider_results import IpqsResult, WebRiskResult
 
+AnalysisStatus = Literal["complete", "partial", "unavailable"]
 
-def _compute_analysis_status(web_risk: WebRiskResult, ipqs: IpqsResult) -> str:
+def _compute_analysis_status(
+    web_risk: WebRiskResult,
+    ipqs: IpqsResult,
+) -> AnalysisStatus:
     if (not web_risk.available) and (not ipqs.available):
         return "unavailable"
     if web_risk.available != ipqs.available:
