@@ -36,7 +36,7 @@ async def check_url_with_ipqs(
             "IPQS_API_KEY no configurada; no se puede consultar IPQS | request_id=%s",
             request_id,
         )
-        return IpqsResult.from_unavailable("IPQS_API_KEY no configurada")
+        return IpqsResult.from_config_error("IPQS_API_KEY no configurada")
 
     analysis_url = remove_url_fragment(url)
     encoded_url = quote(analysis_url, safe="")
@@ -73,7 +73,7 @@ async def check_url_with_ipqs(
                 request_id,
                 host,
             )
-            return IpqsResult.from_internal_error("respuesta no valida del proveedor")
+            return IpqsResult.from_parse_error("respuesta no valida del proveedor")
 
         success = _to_bool(data.get("success"))
         risk_score = _to_int_or_none(data.get("risk_score"))
@@ -121,7 +121,7 @@ async def check_url_with_ipqs(
             "Error HTTP al consultar IPQS | request_id=%s",
             request_id,
         )
-        return IpqsResult.from_internal_error("error de consulta")
+        return IpqsResult.from_http_error(summary="error de red o timeout")
     except Exception:
         logger.exception(
             "Error inesperado al consultar IPQS | request_id=%s",

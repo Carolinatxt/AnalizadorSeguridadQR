@@ -17,5 +17,7 @@ WEBRISK_API_KEY: str | None = _clean_env_value(
 )
 IPQS_API_KEY: str | None = _clean_env_value(os.getenv("IPQS_API_KEY"))
 
-# Politica de seguridad visible para /api/v1/analyze.
+# Politica de seguridad para /api/v1/analyze:
+# cada solicitud consume cuota de proveedores externos (Web Risk + IPQS)
+# y ayuda a mitigar abuso del endpoint.
 RATE_LIMIT_ANALYZE: str = "30/minute"

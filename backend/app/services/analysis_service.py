@@ -50,11 +50,27 @@ async def analyze_url_with_providers(
     url: str,
     request_id: str | None = None,
 ) -> AnalysisOutcome:
-    web_risk_result, ipqs_result = await asyncio.gather(
-        check_url_with_web_risk(url, request_id=request_id),
-        check_url_with_ipqs(url, request_id=request_id),
-        return_exceptions=True,
-    )
+    try:
+        web_risk_result, ipqs_result = await asyncio.wait_for(
+            asyncio.gather(
+                check_url_with_web_risk(url, request_id=request_id),
+                check_url_with_ipqs(url, request_id=request_id),
+                return_exceptions=True,
+            ),
+            timeout=12.0,
+        )
+    except asyncio.TimeoutError:
+        logger.error(
+            "Timeout total del analisis | request_id=%s",
+            request_id,
+        )
+        timeout_web_risk = WebRiskResult.from_timeout_error("timeout total del analisis")
+        timeout_ipqs = IpqsResult.from_timeout_error("timeout total del analisis")
+        return AnalysisOutcome(
+            response=_build_response(timeout_web_risk, timeout_ipqs),
+            web_risk=timeout_web_risk,
+            ipqs=timeout_ipqs,
+        )
 
     normalized_web_risk = _normalize_web_risk_result(
         web_risk_result,

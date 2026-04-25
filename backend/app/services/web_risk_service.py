@@ -9,6 +9,11 @@ from app.services.provider_results import WebRiskResult
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
+_ALLOWED_THREAT_TYPES = frozenset({
+    "MALWARE",
+    "SOCIAL_ENGINEERING",
+    "UNWANTED_SOFTWARE",
+})
 
 async def check_url_with_web_risk(
     url: str,
@@ -19,7 +24,7 @@ async def check_url_with_web_risk(
             "WEBRISK_API_KEY no configurada; no se puede consultar Web Risk | request_id=%s",
             request_id,
         )
-        return WebRiskResult.from_unavailable("WEBRISK_API_KEY no configurada")
+        return WebRiskResult.from_config_error("WEBRISK_API_KEY no configurada")
 
     analysis_url = remove_url_fragment(url)
     host = urlsplit(analysis_url).hostname
@@ -60,11 +65,15 @@ async def check_url_with_web_risk(
                 request_id,
                 host,
             )
-            return WebRiskResult.from_internal_error("respuesta no valida del proveedor")
+            return WebRiskResult.from_parse_error("respuesta no valida del proveedor")
 
         threat = data.get("threat")
         raw_threat_types = threat.get("threatTypes", []) if threat else []
-        threat_types = [t for t in raw_threat_types if isinstance(t, str)]
+        threat_types = [
+            threat_type
+            for threat_type in raw_threat_types
+            if isinstance(threat_type, str) and threat_type in _ALLOWED_THREAT_TYPES
+        ]
 
         if threat_types:
             logger.warning(
@@ -87,7 +96,7 @@ async def check_url_with_web_risk(
             "Error HTTP al consultar Web Risk | request_id=%s",
             request_id,
         )
-        return WebRiskResult.from_internal_error("error de consulta")
+        return WebRiskResult.from_http_error(summary="error de red o timeout")
     except Exception:
         logger.exception(
             "Error inesperado al consultar Web Risk | request_id=%s",

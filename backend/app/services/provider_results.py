@@ -1,7 +1,15 @@
 from dataclasses import dataclass, field
 from typing import Literal
 
-ProviderStatus = Literal["ok", "error", "api_error"]
+ProviderStatus = Literal[
+    "ok",
+    "config_error",
+    "http_error",
+    "api_error",
+    "parse_error",
+    "internal_error",
+    "timeout_error",
+]
 
 
 @dataclass(frozen=True)
@@ -13,9 +21,9 @@ class WebRiskResult:
     raw_summary: str = ""
 
     @classmethod
-    def from_unavailable(cls, reason: str) -> "WebRiskResult":
+    def from_config_error(cls, reason: str) -> "WebRiskResult":
         return cls(
-            provider_status="error",
+            provider_status="config_error",
             available=False,
             match_found=False,
             threat_types=(),
@@ -23,12 +31,58 @@ class WebRiskResult:
         )
 
     @classmethod
-    def from_http_error(cls, status_code: int) -> "WebRiskResult":
-        return cls.from_unavailable(f"Web Risk HTTP {status_code}")
+    def from_http_error(
+        cls,
+        status_code: int | None = None,
+        summary: str | None = None,
+    ) -> "WebRiskResult":
+        resolved_summary = summary
+        if resolved_summary is None:
+            resolved_summary = (
+                f"Web Risk HTTP {status_code}"
+                if status_code is not None
+                else "error HTTP al consultar Web Risk"
+            )
+        return cls(
+            provider_status="http_error",
+            available=False,
+            match_found=False,
+            threat_types=(),
+            raw_summary=resolved_summary,
+        )
+
+    @classmethod
+    def from_parse_error(
+        cls,
+        summary: str = "respuesta no valida del proveedor",
+    ) -> "WebRiskResult":
+        return cls(
+            provider_status="parse_error",
+            available=False,
+            match_found=False,
+            threat_types=(),
+            raw_summary=summary,
+        )
 
     @classmethod
     def from_internal_error(cls, summary: str = "error de consulta") -> "WebRiskResult":
-        return cls.from_unavailable(summary)
+        return cls(
+            provider_status="internal_error",
+            available=False,
+            match_found=False,
+            threat_types=(),
+            raw_summary=summary,
+        )
+
+    @classmethod
+    def from_timeout_error(cls, summary: str = "timeout total") -> "WebRiskResult":
+        return cls(
+            provider_status="timeout_error",
+            available=False,
+            match_found=False,
+            threat_types=(),
+            raw_summary=summary,
+        )
 
     @classmethod
     def from_success(cls, threat_types: list[str]) -> "WebRiskResult":
@@ -55,9 +109,9 @@ class IpqsResult:
     raw_summary: str = ""
 
     @classmethod
-    def from_unavailable(cls, reason: str) -> "IpqsResult":
+    def from_config_error(cls, reason: str) -> "IpqsResult":
         return cls(
-            provider_status="error",
+            provider_status="config_error",
             available=False,
             success=False,
             risk_score=None,
@@ -69,12 +123,74 @@ class IpqsResult:
         )
 
     @classmethod
-    def from_http_error(cls, status_code: int) -> "IpqsResult":
-        return cls.from_unavailable(f"IPQS HTTP {status_code}")
+    def from_http_error(
+        cls,
+        status_code: int | None = None,
+        summary: str | None = None,
+    ) -> "IpqsResult":
+        resolved_summary = summary
+        if resolved_summary is None:
+            resolved_summary = (
+                f"IPQS HTTP {status_code}"
+                if status_code is not None
+                else "error HTTP al consultar IPQS"
+            )
+        return cls(
+            provider_status="http_error",
+            available=False,
+            success=False,
+            risk_score=None,
+            phishing=False,
+            malware=False,
+            suspicious=False,
+            unsafe=False,
+            raw_summary=resolved_summary,
+        )
+
+    @classmethod
+    def from_parse_error(
+        cls,
+        summary: str = "respuesta no valida del proveedor",
+    ) -> "IpqsResult":
+        return cls(
+            provider_status="parse_error",
+            available=False,
+            success=False,
+            risk_score=None,
+            phishing=False,
+            malware=False,
+            suspicious=False,
+            unsafe=False,
+            raw_summary=summary,
+        )
 
     @classmethod
     def from_internal_error(cls, summary: str = "error de consulta") -> "IpqsResult":
-        return cls.from_unavailable(summary)
+        return cls(
+            provider_status="internal_error",
+            available=False,
+            success=False,
+            risk_score=None,
+            phishing=False,
+            malware=False,
+            suspicious=False,
+            unsafe=False,
+            raw_summary=summary,
+        )
+
+    @classmethod
+    def from_timeout_error(cls, summary: str = "timeout total") -> "IpqsResult":
+        return cls(
+            provider_status="timeout_error",
+            available=False,
+            success=False,
+            risk_score=None,
+            phishing=False,
+            malware=False,
+            suspicious=False,
+            unsafe=False,
+            raw_summary=summary,
+        )
 
     @classmethod
     def from_api_error(

@@ -1,4 +1,5 @@
 import logging
+import time
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Request
@@ -31,7 +32,9 @@ async def analyze_url(request: Request, payload: AnalyzeUrlRequest) -> AnalyzeUr
         parsed.hostname,
     )
 
+    start_time = time.perf_counter()
     outcome = await analyze_url_with_providers(url, request_id=request_id)
+    duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
     logger.info(
         "Resultado Web Risk | request_id=%s | provider_status=%s | available=%s | match_found=%s | threat_types=%s",
@@ -66,10 +69,11 @@ async def analyze_url(request: Request, payload: AnalyzeUrlRequest) -> AnalyzeUr
         )
 
     logger.info(
-        "Resultado de analisis | request_id=%s | risk_level=%s | analysis_status=%s",
+        "Resultado de analisis | request_id=%s | risk_level=%s | analysis_status=%s | duration_ms=%s",
         request_id,
         outcome.response.risk_level,
         outcome.response.analysis_status,
+        duration_ms,
     )
 
     return outcome.response

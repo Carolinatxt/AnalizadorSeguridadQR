@@ -21,6 +21,9 @@ async def init_http_client() -> None:
             write=10.0,
             pool=5.0,
         ),
+        headers={
+            "User-Agent": "AnalizadorSeguridadQR-Backend/1.0",
+        },
         follow_redirects=False,
         limits=httpx.Limits(
             max_connections=100,
