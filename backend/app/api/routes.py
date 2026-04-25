@@ -1,7 +1,8 @@
-﻿import logging
+﻿import asyncio
+import logging
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.models.schemas import AnalyzeUrlRequest, AnalyzeUrlResponse
 from app.services.ipqs_service import check_url_with_ipqs
@@ -13,33 +14,11 @@ logger = logging.getLogger(__name__)
 
 @router.post("/api/v1/analyze", response_model=AnalyzeUrlResponse)
 async def analyze_url(payload: AnalyzeUrlRequest) -> AnalyzeUrlResponse:
-    url = payload.url.strip()
+    # Llega validada por AnalyzeUrlRequest; aqui preservamos solo log funcional.
+    url = payload.url
     logger.info("Nueva peticion de analisis recibida en /api/v1/analyze")
 
-    # Logs de rechazo para trazabilidad de respuestas 400.
-    if not url:
-        logger.warning("Solicitud rechazada: la URL esta vacia")
-        raise HTTPException(status_code=400, detail="La URL está vacía")
-
     parsed = urlparse(url)
-
-    if not parsed.scheme:
-        logger.warning("Solicitud rechazada: la URL no es valida (sin esquema)")
-        raise HTTPException(status_code=400, detail="La URL no es válida")
-
-    if parsed.scheme not in {"http", "https"}:
-        logger.warning(
-            "Solicitud rechazada: esquema no permitido | scheme=%s",
-            parsed.scheme,
-        )
-        raise HTTPException(
-            status_code=400,
-            detail="Solo se permiten URLs http o https"
-        )
-
-    if not parsed.hostname:
-        logger.warning("Solicitud rechazada: la URL no es valida (sin host)")
-        raise HTTPException(status_code=400, detail="La URL no es válida")
 
     # Logging de desarrollo: registramos solo esquema y host para no exponer la URL completa.
     logger.info(
@@ -48,8 +27,11 @@ async def analyze_url(payload: AnalyzeUrlRequest) -> AnalyzeUrlResponse:
         parsed.hostname,
     )
 
-    web_risk_result = await check_url_with_web_risk(url)
-    ipqs_result = await check_url_with_ipqs(url)
+    web_risk_result, ipqs_result = await asyncio.gather(
+        check_url_with_web_risk(url),
+        check_url_with_ipqs(url),
+        return_exceptions=False,
+    )
 
     logger.info(
         "Resultado Web Risk | provider_status=%s | available=%s | match_found=%s | threat_types=%s",
@@ -158,3 +140,4 @@ async def analyze_url(payload: AnalyzeUrlRequest) -> AnalyzeUrlResponse:
     )
 
     return response
+

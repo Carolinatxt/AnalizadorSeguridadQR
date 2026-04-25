@@ -1,17 +1,12 @@
 import logging
-from urllib.parse import quote, urlsplit, urlunsplit
+from urllib.parse import quote, urlsplit
 
 import httpx
 
 from app.core.config import WEBRISK_API_KEY
+from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
-
-
-def remove_url_fragment(url: str) -> str:
-    parsed = urlsplit(url)
-    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, parsed.query, ""))
-
 
 async def check_url_with_web_risk(url: str) -> dict:
     if not WEBRISK_API_KEY:
@@ -32,17 +27,16 @@ async def check_url_with_web_risk(url: str) -> dict:
 
     endpoint = "https://webrisk.googleapis.com/v1/uris:search"
     params = [
-        ("key", WEBRISK_API_KEY),
         ("uri", encoded_url),
         ("threatTypes", "MALWARE"),
         ("threatTypes", "SOCIAL_ENGINEERING"),
         ("threatTypes", "UNWANTED_SOFTWARE"),
     ]
+    headers = {"X-Goog-Api-Key": WEBRISK_API_KEY}
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # Usamos params para no construir manualmente una URL completa con secretos.
-            response = await client.get(endpoint, params=params)
+            response = await client.get(endpoint, params=params, headers=headers)
 
         if response.status_code != 200:
             logger.error(

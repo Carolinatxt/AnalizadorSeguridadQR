@@ -1,18 +1,12 @@
 import logging
-from urllib.parse import quote, urlsplit, urlunsplit
+from urllib.parse import quote, urlsplit
 
 import httpx
 
 from app.core.config import IPQS_API_KEY
+from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
-
-
-def remove_url_fragment(url: str) -> str:
-    # Mantenemos el mismo criterio de V0 que en Web Risk: ignorar fragmentos (#...).
-    parsed = urlsplit(url)
-    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, parsed.query, ""))
-
 
 def _to_bool(value: object) -> bool:
     if isinstance(value, bool):
@@ -53,6 +47,8 @@ async def check_url_with_ipqs(url: str) -> dict:
     logger.info("Consultando IPQS | host=%s", host)
 
     endpoint = "https://ipqualityscore.com/api/json/url"
+    # Limitacion del proveedor: IPQS exige API key en la ruta.
+    # No registrar request_url evita exponer secretos en logs de aplicacion.
     request_url = f"{endpoint}/{IPQS_API_KEY}/{encoded_url}"
 
     try:
