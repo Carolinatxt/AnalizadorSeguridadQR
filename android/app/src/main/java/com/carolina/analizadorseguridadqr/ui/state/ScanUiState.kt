@@ -1,5 +1,19 @@
 package com.carolina.analizadorseguridadqr.ui.state
 
+enum class RiskLevel {
+    SAFE,
+    SUSPICIOUS,
+    DANGEROUS,
+    UNKNOWN,
+}
+
+enum class AnalysisStatus {
+    COMPLETE,
+    PARTIAL,
+    UNAVAILABLE,
+    UNKNOWN,
+}
+
 // Estados de la pantalla principal durante el flujo de escaneo/análisis.
 sealed class ScanUiState {
     // Estado inicial: aún no hay datos de QR.
@@ -16,8 +30,8 @@ sealed class ScanUiState {
 
     // Resultado final devuelto por el backend.
     data class AnalysisResult(
-        val riskLevel: String,
-        val analysisStatus: String,
+        val riskLevel: RiskLevel,
+        val analysisStatus: AnalysisStatus,
         val summary: String,
         val analyzedUrl: String? = null,
     ) : ScanUiState()

@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.carolina.analizadorseguridadqr.network.AnalysisService
+import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
+import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.io.IOException
+import java.util.Locale
 
 // ViewModel: concentra el estado de pantalla para que la Activity quede limpia.
 class MainViewModel(
@@ -34,7 +37,8 @@ class MainViewModel(
 
     // Simula que el usuario empieza un escaneo.
     fun onScanButtonClicked() {
-        _uiState.value = ScanUiState.Loading
+        // No cambiamos estado aqui.
+        // Loading se activa en analyzeUrl() cuando el backend ya esta siendo consultado.
     }
 
     fun showIdle() {
@@ -108,9 +112,33 @@ class MainViewModel(
 
             try {
                 val response = analysisService.analyzeUrl(url)
+                val normalizedRiskLevel = response.riskLevel.trim().lowercase(Locale.ROOT)
+                val riskLevel = when (normalizedRiskLevel) {
+                    "safe" -> RiskLevel.SAFE
+                    "suspicious" -> RiskLevel.SUSPICIOUS
+                    "dangerous" -> RiskLevel.DANGEROUS
+                    else -> {
+                        Log.w(TAG, "riskLevel desconocido del backend: '${response.riskLevel}'")
+                        RiskLevel.UNKNOWN
+                    }
+                }
+                val normalizedAnalysisStatus = response.analysisStatus.trim().lowercase(Locale.ROOT)
+                val analysisStatus = when (normalizedAnalysisStatus) {
+                    "complete" -> AnalysisStatus.COMPLETE
+                    "partial" -> AnalysisStatus.PARTIAL
+                    "unavailable" -> AnalysisStatus.UNAVAILABLE
+                    else -> {
+                        Log.w(
+                            TAG,
+                            "analysisStatus desconocido del backend: '${response.analysisStatus}'",
+                        )
+                        AnalysisStatus.UNKNOWN
+                    }
+                }
+
                 _uiState.value = ScanUiState.AnalysisResult(
-                    riskLevel = response.riskLevel,
-                    analysisStatus = response.analysisStatus,
+                    riskLevel = riskLevel,
+                    analysisStatus = analysisStatus,
                     summary = response.summary,
                     analyzedUrl = url,
                 )

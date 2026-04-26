@@ -47,10 +47,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
 import com.carolina.analizadorseguridadqr.ui.theme.QrBackground
@@ -69,6 +73,9 @@ import com.carolina.analizadorseguridadqr.ui.theme.QrSuspicious
 import com.carolina.analizadorseguridadqr.ui.theme.QrSuspiciousSoft
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextPrimary
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextSecondary
+
+// Apertura de enlace pendiente de implementar en fase posterior.
+private const val OPEN_LINK_ENABLED = false
 
 // Pantalla raíz: Compose representa estado y dispara callbacks.
 @Composable
@@ -581,6 +588,7 @@ private fun PrimaryActionButton(
             .height(56.dp)
             .clip(RoundedCornerShape(40.dp))
             .background(Brush.horizontalGradient(listOf(QrGreenDark, QrGreenLight)))
+            .semantics { role = Role.Button }
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -619,6 +627,7 @@ private fun SecondaryActionButton(
             .height(52.dp)
             .clip(RoundedCornerShape(36.dp))
             .background(QrSecondaryButton)
+            .semantics { role = Role.Button }
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -666,7 +675,7 @@ private fun ResultTopBar(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(12.dp)) {
             Icon(
                 imageVector = Icons.Outlined.History,
-                contentDescription = null,
+                contentDescription = "Historial",
                 tint = QrTextSecondary,
             )
         }
@@ -763,12 +772,14 @@ private fun ResultActions(
 ) {
     when (riskType) {
         ResultRiskType.Safe -> {
-            PrimaryActionButton(
-                text = "Abrir enlace",
-                icon = Icons.Outlined.OpenInNew,
-                onClick = onOpenLink,
-            )
-            Spacer(modifier = Modifier.height(14.dp))
+            if (OPEN_LINK_ENABLED) {
+                PrimaryActionButton(
+                    text = "Abrir enlace",
+                    icon = Icons.Outlined.OpenInNew,
+                    onClick = onOpenLink,
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            }
             SecondaryActionButton(
                 text = "Volver al inicio",
                 onClick = onShowIdle,
@@ -782,14 +793,16 @@ private fun ResultActions(
                 icon = Icons.Outlined.Home,
                 onClick = onShowIdle,
             )
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                text = "Entiendo el riesgo, abrir enlace",
-                style = MaterialTheme.typography.bodyMedium,
-                color = QrGreenDark,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable(onClick = onOpenLink),
-            )
+            if (OPEN_LINK_ENABLED) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = "Entiendo el riesgo, abrir enlace",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = QrGreenDark,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(onClick = onOpenLink),
+                )
+            }
         }
     }
 }
@@ -810,52 +823,43 @@ private data class AnalysisResultUiModel(
 )
 
 private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): AnalysisResultUiModel {
-    val normalized = "${result.riskLevel.trim()} ${result.analysisStatus.trim()}".lowercase()
-
-    return when {
-        normalized.contains("danger") ||
-            normalized.contains("malicious") ||
-            normalized.contains("phishing") ||
-            normalized.contains("high") -> AnalysisResultUiModel(
+    return when (result.riskLevel) {
+        RiskLevel.DANGEROUS -> AnalysisResultUiModel(
             riskType = ResultRiskType.Dangerous,
             title = "Peligrosa",
             description = pickResultDescription(
                 summary = result.summary,
-                fallback = "Detectamos una amenaza de seguridad inminente en este enlace.",
+                fallback = "Los proveedores externos relacionan este enlace con una amenaza grave.",
             ),
             accentColor = QrDanger,
             softColor = QrDangerSoft,
             heroIcon = Icons.Outlined.ErrorOutline,
         )
-
-        normalized.contains("suspicious") ||
-            normalized.contains("medium") ||
-            normalized.contains("unknown") -> AnalysisResultUiModel(
-            riskType = ResultRiskType.Suspicious,
-            title = "Sospechoso",
-            description = pickResultDescription(
-                summary = result.summary,
-                fallback = "Detectamos señales que requieren precaucion antes de abrir este enlace.",
-            ),
-            accentColor = QrSuspicious,
-            softColor = QrSuspiciousSoft,
-            heroIcon = Icons.Outlined.Info,
-        )
-
-        else -> AnalysisResultUiModel(
+        RiskLevel.SAFE -> AnalysisResultUiModel(
             riskType = ResultRiskType.Safe,
             title = "Segura",
             description = pickResultDescription(
                 summary = result.summary,
-                fallback = "No se han detectado amenazas inmediatas en este destino.",
+                fallback = "No se detectaron amenazas conocidas en los analisis externos.",
             ),
             accentColor = QrGreenDark,
             softColor = QrGreenSoft,
             heroIcon = Icons.Outlined.Security,
         )
+        RiskLevel.SUSPICIOUS,
+        RiskLevel.UNKNOWN -> AnalysisResultUiModel(
+            riskType = ResultRiskType.Suspicious,
+            title = "Sospechosa",
+            description = pickResultDescription(
+                summary = result.summary,
+                fallback = "Se detectaron senales de riesgo o el analisis no pudo completarse del todo.",
+            ),
+            accentColor = QrSuspicious,
+            softColor = QrSuspiciousSoft,
+            heroIcon = Icons.Outlined.Info,
+        )
     }
 }
-
 private fun pickResultDescription(summary: String, fallback: String): String {
     val cleanSummary = summary.trim()
     if (cleanSummary.isBlank()) return fallback
@@ -863,6 +867,8 @@ private fun pickResultDescription(summary: String, fallback: String): String {
     return cleanSummary
 }
 
+// Solo para mostrar el dominio al usuario en la UI.
+// No usar esta funcion como validacion de seguridad.
 private fun extractDisplayDomain(url: String?): String {
     val cleanUrl = url?.trim().orEmpty()
     if (cleanUrl.isBlank()) return "dominio-no-disponible"
