@@ -106,15 +106,10 @@ async def unhandled_exception_handler(
         request.url.path,
         exc_info=exc,
     )
-    response = JSONResponse(
+    return JSONResponse(
         status_code=500,
         content={"detail": "Error interno del servidor"},
     )
-    if "X-Request-ID" not in response.headers:
-        request_id = getattr(request.state, "request_id", None)
-        if request_id:
-            response.headers["X-Request-ID"] = request_id
-    return response
 
 
 @app.get("/api/v1/health")
