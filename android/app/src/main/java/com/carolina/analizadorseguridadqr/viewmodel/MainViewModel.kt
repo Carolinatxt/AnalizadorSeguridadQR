@@ -29,16 +29,14 @@ class MainViewModel(
 
     // Exponemos solo lectura para evitar cambios desde fuera.
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
-
     // Guarda la última URL web válida para el botón "Reintentar".
     private var lastValidWebUrl: String? = null
     // Evita lanzar varias peticiones al backend por dobles toques del usuario.
     private var isAnalyzing: Boolean = false
 
-    // Simula que el usuario empieza un escaneo.
+    // El usuario ha pulsado el botón de escanear.
+    // No cambiamos estado aquí porque Loading se usa solo al consultar el backend.
     fun onScanButtonClicked() {
-        // No cambiamos estado aquí.
-        // Loading se activa en analyzeUrl() cuando el backend ya está siendo consultado.
     }
 
     fun showIdle() {
@@ -57,7 +55,7 @@ class MainViewModel(
         val content = rawValue?.trim()
         if (content.isNullOrEmpty()) {
             _uiState.value = ScanUiState.NotAWebUrl(
-                "No se detectó un enlace web válido en el código QR."
+                "No se detectó un enlace web válido en el código QR.",
             )
             return
         }
@@ -70,7 +68,7 @@ class MainViewModel(
                 "Uri.parse fallo para contenido QR (tipo_excepcion=${exception.javaClass.simpleName})",
             )
             _uiState.value = ScanUiState.NotAWebUrl(
-                "El código QR no contiene un enlace web válido (http o https)."
+                "El código QR no contiene un enlace web válido (http o https).",
             )
             return
         }
@@ -80,7 +78,7 @@ class MainViewModel(
 
         if (!hasWebScheme || !hasHost) {
             _uiState.value = ScanUiState.NotAWebUrl(
-                "El código QR no contiene un enlace web válido (http o https)."
+                "El código QR no contiene un enlace web válido (http o https).",
             )
             return
         }
@@ -103,7 +101,7 @@ class MainViewModel(
         if (url.isNullOrBlank()) {
             Log.w(TAG, "No hay URL válida reciente para reintentar análisis.")
             _uiState.value = ScanUiState.Error(
-                "No hay un enlace válido reciente para reintentar. Escanea otro QR."
+                "No hay un enlace válido reciente para reintentar. Escanea otro QR.",
             )
             return
         }
@@ -123,33 +121,9 @@ class MainViewModel(
 
             try {
                 val response = analysisService.analyzeUrl(url)
-                val normalizedRiskLevel = response.riskLevel.trim().lowercase(Locale.ROOT)
-                val riskLevel = when (normalizedRiskLevel) {
-                    "safe" -> RiskLevel.SAFE
-                    "suspicious" -> RiskLevel.SUSPICIOUS
-                    "dangerous" -> RiskLevel.DANGEROUS
-                    else -> {
-                        Log.w(TAG, "riskLevel desconocido del backend: '${response.riskLevel}'")
-                        RiskLevel.UNKNOWN
-                    }
-                }
-                val normalizedAnalysisStatus = response.analysisStatus.trim().lowercase(Locale.ROOT)
-                val analysisStatus = when (normalizedAnalysisStatus) {
-                    "complete" -> AnalysisStatus.COMPLETE
-                    "partial" -> AnalysisStatus.PARTIAL
-                    "unavailable" -> AnalysisStatus.UNAVAILABLE
-                    else -> {
-                        Log.w(
-                            TAG,
-                            "analysisStatus desconocido del backend: '${response.analysisStatus}'",
-                        )
-                        AnalysisStatus.UNKNOWN
-                    }
-                }
-
                 _uiState.value = ScanUiState.AnalysisResult(
-                    riskLevel = riskLevel,
-                    analysisStatus = analysisStatus,
+                    riskLevel = mapRiskLevel(response.riskLevel),
+                    analysisStatus = mapAnalysisStatus(response.analysisStatus),
                     summary = response.summary,
                     analyzedUrl = url,
                 )
@@ -157,22 +131,46 @@ class MainViewModel(
                 // Error controlado de red: warning para diagnóstico sin marcar fallo crítico.
                 Log.w(TAG, "Error de conexión con backend: ${exception.message}", exception)
                 _uiState.value = ScanUiState.Error(
-                    "No se pudo conectar con el servicio de análisis."
+                    "No se pudo conectar con el servicio de análisis.",
                 )
             } catch (exception: HttpException) {
                 // Error HTTP controlado: el servidor respondió, pero no en estado exitoso.
                 Log.w(TAG, "Error HTTP backend: ${exception.code()}", exception)
                 _uiState.value = ScanUiState.Error(
-                    "No se pudo completar el análisis. Inténtalo de nuevo."
+                    "No se pudo completar el análisis. Inténtalo de nuevo.",
                 )
             } catch (exception: Exception) {
                 // Error no previsto: se registra como error para facilitar investigación.
                 Log.e(TAG, "Error inesperado al analizar URL: ${exception.message}", exception)
                 _uiState.value = ScanUiState.Error(
-                    "No se pudo completar el análisis. Inténtalo de nuevo."
+                    "No se pudo completar el análisis. Inténtalo de nuevo.",
                 )
             } finally {
                 isAnalyzing = false
+            }
+        }
+    }
+
+    private fun mapRiskLevel(value: String): RiskLevel {
+        return when (value.trim().lowercase(Locale.ROOT)) {
+            "safe" -> RiskLevel.SAFE
+            "suspicious" -> RiskLevel.SUSPICIOUS
+            "dangerous" -> RiskLevel.DANGEROUS
+            else -> {
+                Log.w(TAG, "riskLevel desconocido del backend: '$value'")
+                RiskLevel.UNKNOWN
+            }
+        }
+    }
+
+    private fun mapAnalysisStatus(value: String): AnalysisStatus {
+        return when (value.trim().lowercase(Locale.ROOT)) {
+            "complete" -> AnalysisStatus.COMPLETE
+            "partial" -> AnalysisStatus.PARTIAL
+            "unavailable" -> AnalysisStatus.UNAVAILABLE
+            else -> {
+                Log.w(TAG, "analysisStatus desconocido del backend: '$value'")
+                AnalysisStatus.UNKNOWN
             }
         }
     }

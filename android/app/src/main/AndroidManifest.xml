@@ -8,8 +8,9 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
-    <!-- Solo para desarrollo local por USB + adb reverse con http://127.0.0.1:8000 -->
-    <!-- En producción debe usarse HTTPS y desactivar cleartextTraffic. -->
+    <!-- SOLO DESARROLLO LOCAL: permite HTTP hacia 127.0.0.1 via adb reverse tcp:8000 tcp:8000 -->
+    <!-- ANTES DE PRODUCCIÓN: eliminar este atributo y migrar el backend a HTTPS.               -->
+    <!-- Alternativa: añadir networkSecurityConfig.xml restringiendo cleartext solo a localhost. -->
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"

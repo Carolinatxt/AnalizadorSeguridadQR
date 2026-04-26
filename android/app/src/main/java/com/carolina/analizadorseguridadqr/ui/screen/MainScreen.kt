@@ -1,6 +1,7 @@
 package com.carolina.analizadorseguridadqr.ui.screen
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -51,8 +52,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
@@ -782,11 +783,18 @@ private fun ResultActions(
                     onClick = onOpenLink,
                 )
                 Spacer(modifier = Modifier.height(14.dp))
+                SecondaryActionButton(
+                    text = "Volver al inicio",
+                    onClick = onShowIdle,
+                )
+            } else {
+                // Mientras abrir enlace no está implementado, "Volver" es la acción principal.
+                PrimaryActionButton(
+                    text = "Volver al inicio",
+                    icon = Icons.Outlined.Home,
+                    onClick = onShowIdle,
+                )
             }
-            SecondaryActionButton(
-                text = "Volver al inicio",
-                onClick = onShowIdle,
-            )
         }
 
         ResultRiskType.Suspicious,
@@ -880,6 +888,7 @@ private fun extractDisplayDomain(url: String?): String {
         val host = Uri.parse(cleanUrl).host?.removePrefix("www.")?.trim().orEmpty()
         if (host.isNotBlank()) host else cleanUrl.take(48)
     } catch (exception: Exception) {
+        Log.w("MainScreen", "extractDisplayDomain: fallo al parsear dominio (${exception.javaClass.simpleName})")
         cleanUrl.take(48)
     }
 }
