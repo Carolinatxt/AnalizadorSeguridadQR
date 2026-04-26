@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
         if (isGranted) {
             launchScanner()
         } else {
-            viewModel.showError("Permite el acceso a la camara para escanear codigos QR.")
+            viewModel.showError("Para escanear códigos QR necesitas permitir el acceso a la cámara.")
         }
     }
 
@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
     private fun launchScanner() {
         val options = ScanOptions().apply {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            setPrompt("Enfoca el codigo QR")
+            setPrompt("Enfoca el código QR")
             setBeepEnabled(false)
             setBarcodeImageEnabled(false)
             setOrientationLocked(false)

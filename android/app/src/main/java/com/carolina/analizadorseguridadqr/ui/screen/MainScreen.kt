@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -758,6 +759,8 @@ private fun DetectedDomainCard(
                     style = MaterialTheme.typography.titleMedium,
                     color = QrTextPrimary,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -840,7 +843,7 @@ private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): Anal
             title = "Segura",
             description = pickResultDescription(
                 summary = result.summary,
-                fallback = "No se detectaron amenazas conocidas en los analisis externos.",
+                fallback = "No se detectaron amenazas conocidas en los análisis externos.",
             ),
             accentColor = QrGreenDark,
             softColor = QrGreenSoft,
@@ -852,7 +855,7 @@ private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): Anal
             title = "Sospechosa",
             description = pickResultDescription(
                 summary = result.summary,
-                fallback = "Se detectaron senales de riesgo o el analisis no pudo completarse del todo.",
+                fallback = "Se detectaron señales de riesgo o el análisis no pudo completarse del todo.",
             ),
             accentColor = QrSuspicious,
             softColor = QrSuspiciousSoft,

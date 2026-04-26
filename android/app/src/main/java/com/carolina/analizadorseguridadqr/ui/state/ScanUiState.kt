@@ -19,7 +19,7 @@ sealed class ScanUiState {
     // Estado inicial: aún no hay datos de QR.
     data object Idle : ScanUiState()
 
-    // Estado de trabajo (por ejemplo, esperando resultado de escaneo).
+    // Estado de trabajo (por ejemplo, esperando respuesta del backend de analisis).
     data object Loading : ScanUiState()
 
     // El QR existe, pero su contenido no es un enlace web válido para esta app.

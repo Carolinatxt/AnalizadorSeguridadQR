@@ -37,8 +37,8 @@ class MainViewModel(
 
     // Simula que el usuario empieza un escaneo.
     fun onScanButtonClicked() {
-        // No cambiamos estado aqui.
-        // Loading se activa en analyzeUrl() cuando el backend ya esta siendo consultado.
+        // No cambiamos estado aquí.
+        // Loading se activa en analyzeUrl() cuando el backend ya está siendo consultado.
     }
 
     fun showIdle() {
@@ -62,8 +62,19 @@ class MainViewModel(
             return
         }
 
-        val parsed = Uri.parse(content)
-        val scheme = parsed.scheme?.lowercase()
+        val parsed = try {
+            Uri.parse(content)
+        } catch (exception: Exception) {
+            Log.w(
+                TAG,
+                "Uri.parse fallo para contenido QR (tipo_excepcion=${exception.javaClass.simpleName})",
+            )
+            _uiState.value = ScanUiState.NotAWebUrl(
+                "El código QR no contiene un enlace web válido (http o https)."
+            )
+            return
+        }
+        val scheme = parsed.scheme?.lowercase(Locale.ROOT)
         val hasWebScheme = scheme == "http" || scheme == "https"
         val hasHost = !parsed.host.isNullOrBlank()
 
