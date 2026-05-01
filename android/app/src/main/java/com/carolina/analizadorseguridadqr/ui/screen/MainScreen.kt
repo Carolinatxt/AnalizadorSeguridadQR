@@ -41,7 +41,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
 import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
@@ -76,8 +83,6 @@ import com.carolina.analizadorseguridadqr.ui.theme.QrSuspiciousSoft
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextPrimary
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextSecondary
 
-// Apertura de enlace pendiente de implementar en fase posterior.
-private const val OPEN_LINK_ENABLED = false
 
 // Pantalla raíz: Compose representa estado y dispara callbacks.
 @Composable
@@ -86,6 +91,7 @@ fun MainScreen(
     onStartScan: () -> Unit,
     onShowIdle: () -> Unit,
     onRetryAnalysis: () -> Unit,
+    onOpenLink: (String) -> Unit,
 ) {
     when (uiState) {
         ScanUiState.Idle -> HomeStateScreen(onStartScan = onStartScan)
@@ -105,6 +111,7 @@ fun MainScreen(
         is ScanUiState.AnalysisResult -> AnalysisResultStateScreen(
             result = uiState,
             onShowIdle = onShowIdle,
+            onOpenLink = onOpenLink,
         )
     }
 }
@@ -299,12 +306,12 @@ private fun ErrorStateScreen(
 private fun AnalysisResultStateScreen(
     result: ScanUiState.AnalysisResult,
     onShowIdle: () -> Unit,
+    onOpenLink: (String) -> Unit,
 ) {
     AnalysisResultScreen(
         result = result,
         onShowIdle = onShowIdle,
-        // Callback preparado para fase posterior (abrir enlace real).
-        onOpenLink = {},
+        onOpenLink = onOpenLink,
     )
 }
 
@@ -312,10 +319,20 @@ private fun AnalysisResultStateScreen(
 private fun AnalysisResultScreen(
     result: ScanUiState.AnalysisResult,
     onShowIdle: () -> Unit,
-    onOpenLink: () -> Unit,
+    onOpenLink: (String) -> Unit,
 ) {
     val uiModel = buildAnalysisResultUiModel(result)
     val domain = extractDisplayDomain(result.analyzedUrl)
+    val openLinkPolicy = buildOpenLinkPolicy(result)
+    var showOpenLinkConfirmation by rememberSaveable { mutableStateOf(false) }
+
+    val requestOpenLink = {
+        if (openLinkPolicy == OpenLinkPolicy.SafeDirectOpen) {
+            onOpenLink(result.analyzedUrl.orEmpty())
+        } else {
+            showOpenLinkConfirmation = true
+        }
+    }
 
     Scaffold(
         containerColor = QrBackground,
@@ -325,46 +342,64 @@ private fun AnalysisResultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 24.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            ResultTopBar(onBack = onShowIdle)
-            Spacer(modifier = Modifier.height(24.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                ResultTopBar(onBack = onShowIdle)
+                Spacer(modifier = Modifier.height(24.dp))
 
-            ResultHero(model = uiModel)
-            Spacer(modifier = Modifier.height(22.dp))
+                ResultHero(model = uiModel)
+                Spacer(modifier = Modifier.height(22.dp))
 
-            Text(
-                text = uiModel.title,
-                style = MaterialTheme.typography.headlineLarge,
-                color = uiModel.accentColor,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = uiModel.description,
-                style = MaterialTheme.typography.bodyLarge,
-                color = QrTextSecondary,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(26.dp))
+                Text(
+                    text = uiModel.title,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = uiModel.accentColor,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = uiModel.description,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = QrTextSecondary,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(26.dp))
 
-            DetectedDomainCard(
-                domain = domain,
-                accentColor = uiModel.accentColor,
-                accentSoftColor = uiModel.softColor,
-            )
+                DetectedDomainCard(
+                    domain = domain,
+                    accentColor = uiModel.accentColor,
+                    accentSoftColor = uiModel.softColor,
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
-            Spacer(modifier = Modifier.weight(1f))
             ResultActions(
-                riskType = uiModel.riskType,
+                openLinkPolicy = openLinkPolicy,
                 onShowIdle = onShowIdle,
-                onOpenLink = onOpenLink,
+                onOpenLink = requestOpenLink,
             )
             Spacer(modifier = Modifier.height(18.dp))
         }
+    }
+
+    if (showOpenLinkConfirmation) {
+        OpenLinkConfirmationDialog(
+            openLinkPolicy = openLinkPolicy,
+            analysisStatus = result.analysisStatus,
+            onDismiss = { showOpenLinkConfirmation = false },
+            onConfirm = {
+                showOpenLinkConfirmation = false
+                onOpenLink(result.analyzedUrl.orEmpty())
+            },
+        )
     }
 }
 
@@ -770,62 +805,96 @@ private fun DetectedDomainCard(
 
 @Composable
 private fun ResultActions(
-    riskType: ResultRiskType,
+    openLinkPolicy: OpenLinkPolicy,
     onShowIdle: () -> Unit,
     onOpenLink: () -> Unit,
 ) {
-    when (riskType) {
-        ResultRiskType.Safe -> {
-            if (OPEN_LINK_ENABLED) {
-                PrimaryActionButton(
-                    text = "Abrir enlace",
-                    icon = Icons.Outlined.OpenInNew,
-                    onClick = onOpenLink,
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-                SecondaryActionButton(
-                    text = "Volver al inicio",
-                    onClick = onShowIdle,
-                )
-            } else {
-                // Mientras abrir enlace no está implementado, "Volver" es la acción principal.
-                PrimaryActionButton(
-                    text = "Volver al inicio",
-                    icon = Icons.Outlined.Home,
-                    onClick = onShowIdle,
-                )
-            }
+    when (openLinkPolicy) {
+        OpenLinkPolicy.SafeDirectOpen -> {
+            PrimaryActionButton(
+                text = "Abrir enlace",
+                icon = Icons.Outlined.OpenInNew,
+                onClick = onOpenLink,
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            SecondaryActionButton(
+                text = "Volver al inicio",
+                onClick = onShowIdle,
+            )
         }
 
-        ResultRiskType.Suspicious,
-        ResultRiskType.Dangerous -> {
+        OpenLinkPolicy.ConfirmRiskyOpen,
+        OpenLinkPolicy.ConfirmDangerousOpen -> {
             PrimaryActionButton(
                 text = "Volver al inicio",
                 icon = Icons.Outlined.Home,
                 onClick = onShowIdle,
             )
-            if (OPEN_LINK_ENABLED) {
-                Spacer(modifier = Modifier.height(14.dp))
-                Text(
-                    text = "Entiendo el riesgo, abrir enlace",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = QrGreenDark,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.clickable(onClick = onOpenLink),
-                )
-            }
+            Spacer(modifier = Modifier.height(14.dp))
+            SecondaryActionButton(
+                text = if (openLinkPolicy == OpenLinkPolicy.ConfirmDangerousOpen) {
+                    "Entiendo el riesgo, abrir enlace"
+                } else {
+                    "Abrir de todas formas"
+                },
+                onClick = onOpenLink,
+            )
         }
     }
 }
 
-private enum class ResultRiskType {
-    Safe,
-    Suspicious,
-    Dangerous,
+@Composable
+private fun OpenLinkConfirmationDialog(
+    openLinkPolicy: OpenLinkPolicy,
+    analysisStatus: AnalysisStatus,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val isDangerous = openLinkPolicy == OpenLinkPolicy.ConfirmDangerousOpen
+    val isAnalysisIncompleteOrUncertain = analysisStatus == AnalysisStatus.PARTIAL ||
+        analysisStatus == AnalysisStatus.UNAVAILABLE ||
+        analysisStatus == AnalysisStatus.UNKNOWN
+    val title = if (isDangerous) "Enlace peligroso" else "Antes de continuar"
+    val message = if (isDangerous) {
+        "Este enlace ha sido relacionado con una amenaza grave. Abrirlo puede ponerte en riesgo. " +
+            "Si continúas, se abrirá fuera de la app en el navegador del dispositivo."
+    } else {
+        // PARTIAL, UNAVAILABLE y UNKNOWN no deben parecer analisis plenamente fiables.
+        if (isAnalysisIncompleteOrUncertain) {
+            "Este enlace no se ha clasificado como seguro o el análisis no pudo completarse del todo. " +
+                "Si continúas, se abrirá fuera de la app en el navegador del dispositivo."
+        } else {
+            "Este enlace no se ha clasificado como seguro. " +
+                "Si continúas, se abrirá fuera de la app en el navegador del dispositivo."
+        }
+    }
+    val confirmText = if (isDangerous) "Entiendo el riesgo" else "Abrir de todas formas"
+    val confirmColor = if (isDangerous) QrDanger else QrTextSecondary
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = title, color = QrTextPrimary) },
+        text = { Text(text = message, color = QrTextSecondary) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(text = confirmText, color = confirmColor)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Cancelar", color = QrTextSecondary)
+            }
+        },
+    )
+}
+
+private enum class OpenLinkPolicy {
+    SafeDirectOpen,
+    ConfirmRiskyOpen,
+    ConfirmDangerousOpen,
 }
 
 private data class AnalysisResultUiModel(
-    val riskType: ResultRiskType,
     val title: String,
     val description: String,
     val accentColor: Color,
@@ -836,7 +905,6 @@ private data class AnalysisResultUiModel(
 private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): AnalysisResultUiModel {
     return when (result.riskLevel) {
         RiskLevel.DANGEROUS -> AnalysisResultUiModel(
-            riskType = ResultRiskType.Dangerous,
             title = "Peligrosa",
             description = pickResultDescription(
                 summary = result.summary,
@@ -847,7 +915,6 @@ private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): Anal
             heroIcon = Icons.Outlined.ErrorOutline,
         )
         RiskLevel.SAFE -> AnalysisResultUiModel(
-            riskType = ResultRiskType.Safe,
             title = "Segura",
             description = pickResultDescription(
                 summary = result.summary,
@@ -859,7 +926,6 @@ private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): Anal
         )
         RiskLevel.SUSPICIOUS,
         RiskLevel.UNKNOWN -> AnalysisResultUiModel(
-            riskType = ResultRiskType.Suspicious,
             title = "Sospechosa",
             description = pickResultDescription(
                 summary = result.summary,
@@ -876,6 +942,19 @@ private fun pickResultDescription(summary: String, fallback: String): String {
     if (cleanSummary.isBlank()) return fallback
     if (cleanSummary.length > 140) return fallback
     return cleanSummary
+}
+
+private fun buildOpenLinkPolicy(result: ScanUiState.AnalysisResult): OpenLinkPolicy {
+    val isClearlySafe = result.riskLevel == RiskLevel.SAFE &&
+        result.analysisStatus == AnalysisStatus.COMPLETE
+    if (isClearlySafe) return OpenLinkPolicy.SafeDirectOpen
+
+    // Si el proveedor marca peligroso, mostramos confirmacion mas fuerte.
+    return if (result.riskLevel == RiskLevel.DANGEROUS) {
+        OpenLinkPolicy.ConfirmDangerousOpen
+    } else {
+        OpenLinkPolicy.ConfirmRiskyOpen
+    }
 }
 
 // Solo para mostrar el dominio al usuario en la UI.
@@ -974,6 +1053,7 @@ private fun HomePreview() {
             onStartScan = {},
             onShowIdle = {},
             onRetryAnalysis = {},
+            onOpenLink = {},
         )
     }
 }
@@ -987,6 +1067,7 @@ private fun LoadingPreview() {
             onStartScan = {},
             onShowIdle = {},
             onRetryAnalysis = {},
+            onOpenLink = {},
         )
     }
 }
@@ -1000,6 +1081,7 @@ private fun NotWebPreview() {
             onStartScan = {},
             onShowIdle = {},
             onRetryAnalysis = {},
+            onOpenLink = {},
         )
     }
 }
@@ -1013,6 +1095,7 @@ private fun ErrorPreview() {
             onStartScan = {},
             onShowIdle = {},
             onRetryAnalysis = {},
+            onOpenLink = {},
         )
     }
 }

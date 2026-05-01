@@ -1,8 +1,12 @@
 package com.carolina.analizadorseguridadqr
 
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,6 +20,7 @@ import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
 import com.carolina.analizadorseguridadqr.viewmodel.MainViewModel
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import java.util.Locale
 
 // Activity minima: conecta ViewModel + Compose.
 // Aqui no metemos logica de negocio, solo coordinacion de UI.
@@ -58,6 +63,7 @@ class MainActivity : ComponentActivity() {
                     onStartScan = ::startScan,
                     onShowIdle = viewModel::showIdle,
                     onRetryAnalysis = viewModel::retryLastAnalysis,
+                    onOpenLink = ::openUrlInExternalBrowser,
                 )
             }
         }
@@ -90,5 +96,67 @@ class MainActivity : ComponentActivity() {
         }
 
         qrScannerLauncher.launch(options)
+    }
+
+    private fun openUrlInExternalBrowser(url: String) {
+        val cleanUrl = url.trim()
+        if (cleanUrl.isBlank()) {
+            Toast.makeText(
+                this,
+                "No se puede abrir este enlace porque no parece una URL web válida.",
+                Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
+
+        val parsedUri = try {
+            Uri.parse(cleanUrl)
+        } catch (_: Exception) {
+            Toast.makeText(
+                this,
+                "No se puede abrir este enlace porque no parece una URL web válida.",
+                Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
+
+        // Fail-secure: solo permitimos enlaces web HTTP/HTTPS con host.
+        val normalizedScheme = parsedUri.scheme?.lowercase(Locale.ROOT)
+        val hasAllowedScheme = normalizedScheme == "http" || normalizedScheme == "https"
+        val hasHost = !parsedUri.host.isNullOrBlank()
+        if (!hasAllowedScheme || !hasHost) {
+            Toast.makeText(
+                this,
+                "No se puede abrir este enlace porque no parece una URL web válida.",
+                Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
+
+        val externalOpenIntent = Intent(Intent.ACTION_VIEW, parsedUri).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+        }
+
+        try {
+            startActivity(externalOpenIntent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(
+                this,
+                "No se encontró una aplicación compatible para abrir el enlace.",
+                Toast.LENGTH_SHORT,
+            ).show()
+        } catch (_: SecurityException) {
+            Toast.makeText(
+                this,
+                "No se pudo abrir el enlace de forma segura.",
+                Toast.LENGTH_SHORT,
+            ).show()
+        } catch (_: Exception) {
+            Toast.makeText(
+                this,
+                "No se pudo abrir el enlace.",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
     }
 }
