@@ -1,5 +1,6 @@
 from typing import Literal
 
+from app.domain.summary_builder import build_user_explanation
 from app.models.schemas import AnalyzeUrlResponse
 from app.services.provider_results import IpqsResult, WebRiskResult
 
@@ -51,29 +52,26 @@ def is_safe(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
 def build_response(web_risk: WebRiskResult, ipqs: IpqsResult) -> AnalyzeUrlResponse:
     analysis_status = compute_analysis_status(web_risk, ipqs)
     if analysis_status == "unavailable":
-        return AnalyzeUrlResponse(
-            risk_level="suspicious",
-            analysis_status="unavailable",
-            summary="No fue posible completar el análisis. Inténtalo de nuevo.",
-        )
+        risk_level = "suspicious"
+    elif is_dangerous(web_risk, ipqs):
+        risk_level = "dangerous"
+    elif is_safe(web_risk, ipqs):
+        risk_level = "safe"
+    else:
+        # Fallback deliberado a suspicious:
+        # riesgo medio en escenario de analisis parcial o evidencia insuficiente.
+        # Evita falsos "safe" cuando hay incertidumbre operativa o senales ambiguas.
+        risk_level = "suspicious"
 
-    if is_dangerous(web_risk, ipqs):
-        return AnalyzeUrlResponse(
-            risk_level="dangerous",
-            analysis_status=analysis_status,
-            summary="Se detectaron señales de riesgo alto en esta URL.",
-        )
-    if is_safe(web_risk, ipqs):
-        return AnalyzeUrlResponse(
-            risk_level="safe",
-            analysis_status=analysis_status,
-            summary="No se detectaron señales de riesgo en esta URL.",
-        )
-    # Fallback deliberado a suspicious:
-    # riesgo medio en escenario de analisis parcial o evidencia insuficiente.
-    # Evita falsos "safe" cuando hay incertidumbre operativa o senales ambiguas.
-    return AnalyzeUrlResponse(
-        risk_level="suspicious",
+    summary, reasons = build_user_explanation(
+        risk_level=risk_level,
         analysis_status=analysis_status,
-        summary="Se detectaron señales de riesgo potencial o evidencia insuficiente.",
+        web_risk=web_risk,
+        ipqs=ipqs,
+    )
+    return AnalyzeUrlResponse(
+        risk_level=risk_level,
+        analysis_status=analysis_status,
+        summary=summary,
+        reasons=reasons,
     )

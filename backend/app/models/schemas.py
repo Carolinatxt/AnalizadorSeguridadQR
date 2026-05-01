@@ -1,7 +1,7 @@
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class AnalyzeUrlRequest(BaseModel):
@@ -29,4 +29,5 @@ class AnalyzeUrlResponse(BaseModel):
     risk_level: Literal["safe", "suspicious", "dangerous"]
     analysis_status: Literal["complete", "partial", "unavailable"]
     summary: str
+    reasons: list[str] = Field(default_factory=list)
     # FUTURO: añadir details cuando frontend soporte explicabilidad avanzada.

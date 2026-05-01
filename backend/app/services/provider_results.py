@@ -126,6 +126,9 @@ class IpqsResult:
     malware: bool
     suspicious: bool
     unsafe: bool
+    parking: bool | None = None
+    spamming: bool | None = None
+    domain_age_human: str | None = None
     raw_summary: str = ""
 
     @classmethod
@@ -229,6 +232,9 @@ class IpqsResult:
         malware: bool,
         suspicious: bool,
         unsafe: bool,
+        parking: bool | None = None,
+        spamming: bool | None = None,
+        domain_age_human: str | None = None,
     ) -> "IpqsResult":
         return cls(
             provider_status="api_error",
@@ -239,6 +245,9 @@ class IpqsResult:
             malware=malware,
             suspicious=suspicious,
             unsafe=unsafe,
+            parking=parking,
+            spamming=spamming,
+            domain_age_human=domain_age_human,
             raw_summary="respuesta de proveedor sin exito",
         )
 
@@ -250,6 +259,9 @@ class IpqsResult:
         malware: bool,
         suspicious: bool,
         unsafe: bool,
+        parking: bool | None = None,
+        spamming: bool | None = None,
+        domain_age_human: str | None = None,
     ) -> "IpqsResult":
         return cls(
             provider_status="ok",
@@ -260,5 +272,8 @@ class IpqsResult:
             malware=malware,
             suspicious=suspicious,
             unsafe=unsafe,
+            parking=parking,
+            spamming=spamming,
+            domain_age_human=domain_age_human,
             raw_summary="analisis completado",
         )

@@ -33,6 +33,7 @@ sealed class ScanUiState {
         val riskLevel: RiskLevel,
         val analysisStatus: AnalysisStatus,
         val summary: String,
+        val reasons: List<String> = emptyList(),
         val analyzedUrl: String? = null,
     ) : ScanUiState()
 

@@ -125,6 +125,7 @@ class MainViewModel(
                     riskLevel = mapRiskLevel(response.riskLevel),
                     analysisStatus = mapAnalysisStatus(response.analysisStatus),
                     summary = response.summary,
+                    reasons = response.reasons,
                     analyzedUrl = url,
                 )
             } catch (exception: IOException) {

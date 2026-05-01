@@ -9,4 +9,6 @@ data class AnalyzeUrlResponse(
     val analysisStatus: String,
     @SerializedName("summary")
     val summary: String,
+    @SerializedName("reasons")
+    val reasons: List<String> = emptyList(),
 )

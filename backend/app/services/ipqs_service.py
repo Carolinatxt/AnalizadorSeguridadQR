@@ -28,6 +28,22 @@ def _to_int_or_none(value: object) -> int | None:
         return None
 
 
+def _bool_or_none(value: object) -> bool | None:
+    return value if isinstance(value, bool) else None
+
+
+def _domain_age_human_or_none(value: object) -> str | None:
+    if not isinstance(value, dict):
+        return None
+    human = value.get("human")
+    if not isinstance(human, str):
+        return None
+    normalized = human.strip()
+    if not normalized or len(normalized) > 80:
+        return None
+    return normalized
+
+
 def _normalize_risk_score(
     value: int | None,
     request_id: str | None = None,
@@ -104,6 +120,9 @@ async def check_url_with_ipqs(
         malware = _to_bool(data.get("malware"))
         suspicious = _to_bool(data.get("suspicious"))
         unsafe = _to_bool(data.get("unsafe"))
+        parking = _bool_or_none(data.get("parking"))
+        spamming = _bool_or_none(data.get("spamming"))
+        domain_age_human = _domain_age_human_or_none(data.get("domain_age"))
 
         if not success:
             logger.warning(
@@ -117,10 +136,13 @@ async def check_url_with_ipqs(
                 malware=malware,
                 suspicious=suspicious,
                 unsafe=unsafe,
+                parking=parking,
+                spamming=spamming,
+                domain_age_human=domain_age_human,
             )
 
         logger.info(
-            "Respuesta IPQS correcta | request_id=%s | host=%s | risk_score=%s | phishing=%s | malware=%s | suspicious=%s | unsafe=%s",
+            "Respuesta IPQS correcta | request_id=%s | host=%s | risk_score=%s | phishing=%s | malware=%s | suspicious=%s | unsafe=%s | parking=%s | spamming=%s | domain_age_human_present=%s",
             request_id,
             host,
             risk_score,
@@ -128,6 +150,9 @@ async def check_url_with_ipqs(
             malware,
             suspicious,
             unsafe,
+            parking,
+            spamming,
+            domain_age_human is not None,
         )
         return IpqsResult.from_success(
             risk_score=risk_score,
@@ -135,6 +160,9 @@ async def check_url_with_ipqs(
             malware=malware,
             suspicious=suspicious,
             unsafe=unsafe,
+            parking=parking,
+            spamming=spamming,
+            domain_age_human=domain_age_human,
         )
 
     except RuntimeError:

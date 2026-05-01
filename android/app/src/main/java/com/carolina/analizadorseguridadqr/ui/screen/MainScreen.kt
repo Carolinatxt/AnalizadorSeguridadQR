@@ -371,6 +371,10 @@ private fun AnalysisResultScreen(
                     color = QrTextSecondary,
                     textAlign = TextAlign.Center,
                 )
+                if (result.reasons.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(22.dp))
+                    ReasonsCard(reasons = result.reasons)
+                }
                 Spacer(modifier = Modifier.height(26.dp))
 
                 DetectedDomainCard(
@@ -798,6 +802,44 @@ private fun DetectedDomainCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReasonsCard(reasons: List<String>) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(QrCardBackground)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+    ) {
+        Column {
+            Text(
+                text = "¿Por qué?",
+                style = MaterialTheme.typography.titleMedium,
+                color = QrTextPrimary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            reasons.take(4).forEach { reason ->
+                Row {
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = QrTextSecondary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = reason,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = QrTextSecondary,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
