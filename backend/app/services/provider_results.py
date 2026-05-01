@@ -18,7 +18,7 @@ class WebRiskResult:
     """Resultado interno de proveedor Web Risk.
 
     Nota: available=False significa que el resultado no es utilizable
-    para la decision final (p.ej. config/http/network/parse/api_error),
+    para la decisión final (p.ej. config/http/network/parse/api_error),
     no necesariamente que el proveedor este completamente caido.
     """
 
@@ -114,8 +114,8 @@ class IpqsResult:
     """Resultado interno de proveedor IPQS.
 
     Nota: available=False significa que el resultado no es utilizable
-    para la decision final (incluyendo api_error), no necesariamente
-    indisponibilidad tecnica total del proveedor.
+    para la decisión final (incluyendo api_error), no necesariamente
+    indisponibilidad técnica total del proveedor.
     """
 
     provider_status: ProviderStatus

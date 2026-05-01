@@ -83,10 +83,10 @@ def _build_summary(
 def _has_visible_signal(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
     return (
         bool(web_risk.threat_types)
-        or ipqs.phishing
-        or ipqs.malware
-        or ipqs.unsafe
-        or ipqs.suspicious
+        or ipqs.phishing is True
+        or ipqs.malware is True
+        or ipqs.unsafe is True
+        or ipqs.suspicious is True
         or (ipqs.spamming is True and ipqs.risk_score is not None and ipqs.risk_score >= 60)
         or ipqs.parking is True
     )
@@ -94,13 +94,15 @@ def _has_visible_signal(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
 
 def _collect_signal_labels(web_risk: WebRiskResult, ipqs: IpqsResult) -> list[str]:
     signals: list[str] = []
-    if "SOCIAL_ENGINEERING" in web_risk.threat_types or ipqs.phishing:
+    if "SOCIAL_ENGINEERING" in web_risk.threat_types or ipqs.phishing is True:
         signals.append("phishing_or_social_engineering")
-    if "MALWARE" in web_risk.threat_types or ipqs.malware:
+    if "MALWARE" in web_risk.threat_types or ipqs.malware is True:
         signals.append("malware")
-    if ipqs.unsafe:
+    if "UNWANTED_SOFTWARE" in web_risk.threat_types:
+        signals.append("unwanted_software")
+    if ipqs.unsafe is True:
         signals.append("unsafe")
-    if ipqs.suspicious:
+    if ipqs.suspicious is True:
         signals.append("suspicious")
     if ipqs.spamming is True:
         signals.append("spamming")
@@ -126,17 +128,22 @@ def _build_reasons(
         ]
 
     reasons: list[str] = []
-    has_phishing_signal = ipqs.phishing or "SOCIAL_ENGINEERING" in web_risk.threat_types
-    has_malware_signal = ipqs.malware or "MALWARE" in web_risk.threat_types
+    has_phishing_signal = ipqs.phishing is True or "SOCIAL_ENGINEERING" in web_risk.threat_types
+    has_malware_signal = ipqs.malware is True or "MALWARE" in web_risk.threat_types
+    has_unwanted_software_signal = "UNWANTED_SOFTWARE" in web_risk.threat_types
+    # El dominio reciente solo se muestra como refuerzo si hay señal fuerte:
+    # phishing, malware, SOCIAL_ENGINEERING o MALWARE.
     has_strong_signal = has_phishing_signal or has_malware_signal
 
     if has_phishing_signal:
         reasons.append("Se han detectado indicios de robo de datos o suplantación.")
     if has_malware_signal:
         reasons.append("Se han detectado señales compatibles con software malicioso.")
-    if ipqs.unsafe:
+    if has_unwanted_software_signal:
+        reasons.append("El enlace aparece asociado a software no deseado.")
+    if ipqs.unsafe is True:
         reasons.append("El enlace aparece marcado como inseguro.")
-    if ipqs.suspicious:
+    if ipqs.suspicious is True:
         reasons.append("El enlace presenta señales de comportamiento anómalo.")
     if _should_show_spam_reason(ipqs, reasons):
         reasons.append("El enlace aparece asociado a actividad de spam.")

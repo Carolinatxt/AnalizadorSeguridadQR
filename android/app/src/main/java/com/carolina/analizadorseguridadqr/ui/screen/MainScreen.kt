@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
@@ -371,10 +371,7 @@ private fun AnalysisResultScreen(
                     color = QrTextSecondary,
                     textAlign = TextAlign.Center,
                 )
-                if (result.reasons.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(22.dp))
-                    ReasonsCard(reasons = result.reasons)
-                }
+                ReasonsCard(reasons = result.reasons)
                 Spacer(modifier = Modifier.height(26.dp))
 
                 DetectedDomainCard(
@@ -404,6 +401,26 @@ private fun AnalysisResultScreen(
                 onOpenLink(result.analyzedUrl.orEmpty())
             },
         )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ReasonsCardPreview() {
+    AnalizadorSeguridadQRTheme {
+        Box(
+            modifier = Modifier
+                .background(QrBackground)
+                .padding(24.dp),
+        ) {
+            ReasonsCard(
+                reasons = listOf(
+                    "Se han detectado indicios de robo de datos o suplantación.",
+                    "Se han detectado señales compatibles con software malicioso.",
+                    "El enlace aparece marcado como inseguro.",
+                ),
+            )
+        }
     }
 }
 
@@ -809,39 +826,54 @@ private fun DetectedDomainCard(
 
 @Composable
 private fun ReasonsCard(reasons: List<String>) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(QrCardBackground)
-            .padding(horizontal = 18.dp, vertical = 16.dp),
-    ) {
-        Column {
-            Text(
-                text = "¿Por qué?",
-                style = MaterialTheme.typography.titleMedium,
-                color = QrTextPrimary,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            reasons.take(4).forEach { reason ->
-                Row {
-                    Text(
-                        text = "•",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = QrTextSecondary,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = reason,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = QrTextSecondary,
-                        modifier = Modifier.weight(1f),
-                    )
+    val visibleReasons = reasons
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .take(4)
+    if (visibleReasons.isEmpty()) return
+
+    Column {
+        Spacer(modifier = Modifier.height(22.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(QrCardBackground)
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+        ) {
+            Column {
+                Text(
+                    text = "¿Por qué?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = QrTextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    visibleReasons.forEach { reason ->
+                        ReasonRow(reason = reason)
+                    }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun ReasonRow(reason: String) {
+    Row {
+        Text(
+            text = "•",
+            style = MaterialTheme.typography.bodyMedium,
+            color = QrTextSecondary,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = reason,
+            style = MaterialTheme.typography.bodyMedium,
+            color = QrTextSecondary,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -855,7 +887,7 @@ private fun ResultActions(
         OpenLinkPolicy.SafeDirectOpen -> {
             PrimaryActionButton(
                 text = "Abrir enlace",
-                icon = Icons.Outlined.OpenInNew,
+                icon = Icons.AutoMirrored.Outlined.OpenInNew,
                 onClick = onOpenLink,
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -901,7 +933,7 @@ private fun OpenLinkConfirmationDialog(
         "Este enlace ha sido relacionado con una amenaza grave. Abrirlo puede ponerte en riesgo. " +
             "Si continúas, se abrirá fuera de la app en el navegador del dispositivo."
     } else {
-        // PARTIAL, UNAVAILABLE y UNKNOWN no deben parecer analisis plenamente fiables.
+        // PARTIAL, UNAVAILABLE y UNKNOWN no deben parecer análisis plenamente fiables.
         if (isAnalysisIncompleteOrUncertain) {
             "Este enlace no se ha clasificado como seguro o el análisis no pudo completarse del todo. " +
                 "Si continúas, se abrirá fuera de la app en el navegador del dispositivo."
@@ -950,7 +982,7 @@ private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): Anal
             title = "Peligrosa",
             description = pickResultDescription(
                 summary = result.summary,
-                fallback = "Los proveedores externos relacionan este enlace con una amenaza grave.",
+                fallback = "Este enlace se ha clasificado como peligroso por señales graves detectadas durante el análisis.",
             ),
             accentColor = QrDanger,
             softColor = QrDangerSoft,
@@ -960,7 +992,7 @@ private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): Anal
             title = "Segura",
             description = pickResultDescription(
                 summary = result.summary,
-                fallback = "No se detectaron amenazas conocidas en los análisis externos.",
+                fallback = "No se han detectado amenazas conocidas en este enlace.",
             ),
             accentColor = QrGreenDark,
             softColor = QrGreenSoft,
@@ -971,7 +1003,7 @@ private fun buildAnalysisResultUiModel(result: ScanUiState.AnalysisResult): Anal
             title = "Sospechosa",
             description = pickResultDescription(
                 summary = result.summary,
-                fallback = "Se detectaron señales de riesgo o el análisis no pudo completarse del todo.",
+                fallback = "No hay información suficiente para clasificar este enlace como seguro.",
             ),
             accentColor = QrSuspicious,
             softColor = QrSuspiciousSoft,
@@ -1000,7 +1032,7 @@ private fun buildOpenLinkPolicy(result: ScanUiState.AnalysisResult): OpenLinkPol
 }
 
 // Solo para mostrar el dominio al usuario en la UI.
-// No usar esta funcion como validacion de seguridad.
+// No usar esta función como validación de seguridad.
 private fun extractDisplayDomain(url: String?): String {
     val cleanUrl = url?.trim().orEmpty()
     if (cleanUrl.isBlank()) return "dominio-no-disponible"

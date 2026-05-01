@@ -21,11 +21,11 @@ def compute_analysis_status(
 
 def is_dangerous(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
     # UNWANTED_SOFTWARE no eleva directamente a dangerous: se trata como
-    # senal de riesgo medio que bloquea safe y mantiene clasificacion conservadora.
+    # señal de riesgo medio que bloquea safe y mantiene clasificación conservadora.
     web_risk_has_malware = "MALWARE" in web_risk.threat_types
     web_risk_has_social_engineering = "SOCIAL_ENGINEERING" in web_risk.threat_types
     ipqs_dangerous = (
-        (ipqs.phishing or ipqs.malware)
+        (ipqs.phishing is True or ipqs.malware is True)
         and ipqs.risk_score is not None
         and ipqs.risk_score >= _IPQS_DANGEROUS_SCORE_THRESHOLD
     )
@@ -42,10 +42,10 @@ def is_safe(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
         and ipqs.success
         and ipqs.risk_score is not None
         and ipqs.risk_score < _IPQS_SAFE_SCORE_THRESHOLD
-        and (not ipqs.phishing)
-        and (not ipqs.malware)
-        and (not ipqs.suspicious)
-        and (not ipqs.unsafe)
+        and ipqs.phishing is False
+        and ipqs.malware is False
+        and ipqs.suspicious is False
+        and ipqs.unsafe is False
     )
 
 
@@ -59,8 +59,8 @@ def build_response(web_risk: WebRiskResult, ipqs: IpqsResult) -> AnalyzeUrlRespo
         risk_level = "safe"
     else:
         # Fallback deliberado a suspicious:
-        # riesgo medio en escenario de analisis parcial o evidencia insuficiente.
-        # Evita falsos "safe" cuando hay incertidumbre operativa o senales ambiguas.
+        # riesgo medio en escenario de análisis parcial o evidencia insuficiente.
+        # Evita falsos "safe" cuando hay incertidumbre operativa o señales ambiguas.
         risk_level = "suspicious"
 
     summary, reasons = build_user_explanation(

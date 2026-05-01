@@ -9,8 +9,8 @@ from app.services.provider_results import WebRiskResult
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
-# TODO: mover logs nominales de proveedor a DEBUG en produccion estable.
-# Allowlist conservadora alineada con reglas actuales del motor de decision.
+# TODO: mover logs nominales de proveedor a DEBUG en producción estable.
+# Allowlist conservadora alineada con reglas actuales del motor de decisión.
 # Tipos nuevos del proveedor deben evaluarse explicitamente antes de incluirse.
 _ALLOWED_THREAT_TYPES = frozenset({
     "MALWARE",

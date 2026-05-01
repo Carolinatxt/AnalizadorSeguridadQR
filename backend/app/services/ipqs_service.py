@@ -9,15 +9,32 @@ from app.services.provider_results import IpqsResult
 from app.utils.url_utils import remove_url_fragment
 
 logger = logging.getLogger(__name__)
-# TODO: mover logs nominales de proveedor a DEBUG en produccion estable.
+# TODO: mover logs nominales de proveedor a DEBUG en producción estable.
 
-def _to_bool(value: object) -> bool:
+def _provider_success_to_bool(value: object) -> bool:
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes"}
     if isinstance(value, (int, float)):
         return value != 0
+    return False
+
+
+def _security_flag_to_bool(
+    value: object,
+    field_name: str,
+    request_id: str | None = None,
+) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is not None:
+        logger.warning(
+            "Flag de seguridad con tipo inesperado descartado | field=%s | type=%s | request_id=%s",
+            field_name,
+            type(value).__name__,
+            request_id,
+        )
     return False
 
 
@@ -85,7 +102,7 @@ async def check_url_with_ipqs(
 
     endpoint = "https://ipqualityscore.com/api/json/url"
     # Limitacion del proveedor: IPQS exige API key en la ruta.
-    # No registrar request_url evita exponer secretos en logs de aplicacion.
+    # No registrar request_url evita exponer secretos en logs de aplicación.
     request_url = f"{endpoint}/{IPQS_API_KEY}/{encoded_url}"
 
     try:
@@ -110,16 +127,16 @@ async def check_url_with_ipqs(
             )
             return IpqsResult.from_parse_error("respuesta no valida del proveedor")
 
-        success = _to_bool(data.get("success"))
+        success = _provider_success_to_bool(data.get("success"))
         risk_score = _normalize_risk_score(
             _to_int_or_none(data.get("risk_score")),
             request_id=request_id,
             host=host,
         )
-        phishing = _to_bool(data.get("phishing"))
-        malware = _to_bool(data.get("malware"))
-        suspicious = _to_bool(data.get("suspicious"))
-        unsafe = _to_bool(data.get("unsafe"))
+        phishing = _security_flag_to_bool(data.get("phishing"), "phishing", request_id)
+        malware = _security_flag_to_bool(data.get("malware"), "malware", request_id)
+        suspicious = _security_flag_to_bool(data.get("suspicious"), "suspicious", request_id)
+        unsafe = _security_flag_to_bool(data.get("unsafe"), "unsafe", request_id)
         parking = _bool_or_none(data.get("parking"))
         spamming = _bool_or_none(data.get("spamming"))
         domain_age_human = _domain_age_human_or_none(data.get("domain_age"))
