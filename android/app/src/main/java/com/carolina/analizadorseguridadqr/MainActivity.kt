@@ -13,12 +13,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,28 +24,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.carolina.analizadorseguridadqr.data.local.history.AppDatabase
-import com.carolina.analizadorseguridadqr.data.repository.ScanHistoryRepository
-import com.carolina.analizadorseguridadqr.security.isSupportedWebUrl
-import com.carolina.analizadorseguridadqr.ui.history.HistoryFilter
-import com.carolina.analizadorseguridadqr.ui.history.HistoryDetailDialog
-import com.carolina.analizadorseguridadqr.ui.history.HistoryOpenLinkConfirmationDialog
-import com.carolina.analizadorseguridadqr.ui.history.HistoryScreen
-import com.carolina.analizadorseguridadqr.ui.history.HistoryUiItem
-import com.carolina.analizadorseguridadqr.ui.history.HistoryViewModel
-import com.carolina.analizadorseguridadqr.ui.history.HistoryViewModelFactory
-import com.carolina.analizadorseguridadqr.ui.navigation.AppTab
-import com.carolina.analizadorseguridadqr.ui.screen.MainScreen
-import com.carolina.analizadorseguridadqr.ui.security.OpenLinkPolicy
-import com.carolina.analizadorseguridadqr.ui.security.resolveOpenLinkPolicy
-import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
-import com.carolina.analizadorseguridadqr.viewmodel.MainViewModel
-import com.carolina.analizadorseguridadqr.viewmodel.MainViewModelFactory
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -55,6 +31,33 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.carolina.analizadorseguridadqr.data.local.history.AppDatabase
+import com.carolina.analizadorseguridadqr.data.repository.ScanHistoryRepository
+import com.carolina.analizadorseguridadqr.security.isSupportedWebUrl
+import com.carolina.analizadorseguridadqr.ui.history.HistoryDetailDialog
+import com.carolina.analizadorseguridadqr.ui.history.HistoryFilter
+import com.carolina.analizadorseguridadqr.ui.history.HistoryOpenLinkConfirmationDialog
+import com.carolina.analizadorseguridadqr.ui.history.HistoryScreen
+import com.carolina.analizadorseguridadqr.ui.history.HistoryUiItem
+import com.carolina.analizadorseguridadqr.ui.history.HistoryViewModel
+import com.carolina.analizadorseguridadqr.ui.history.HistoryViewModelFactory
+import com.carolina.analizadorseguridadqr.ui.navigation.AppTab
+import com.carolina.analizadorseguridadqr.ui.screen.MainScreen
+import com.carolina.analizadorseguridadqr.ui.settings.HistorySettingsScreen
+import com.carolina.analizadorseguridadqr.ui.settings.PrivacySettingsScreen
+import com.carolina.analizadorseguridadqr.ui.security.resolveOpenLinkPolicy
+import com.carolina.analizadorseguridadqr.ui.settings.SettingsBottomBar
+import com.carolina.analizadorseguridadqr.ui.settings.SettingsHomeScreen
+import com.carolina.analizadorseguridadqr.ui.settings.SettingsSubScreen
+import com.carolina.analizadorseguridadqr.ui.settings.SettingsTopBar
+import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
+import com.carolina.analizadorseguridadqr.ui.theme.QrBackground
+import com.carolina.analizadorseguridadqr.viewmodel.MainViewModel
+import com.carolina.analizadorseguridadqr.viewmodel.MainViewModelFactory
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 
 // Activity minima: conecta ViewModel + Compose.
 // Aqui no metemos logica de negocio, solo coordinacion de UI.
@@ -89,7 +92,7 @@ class MainActivity : ComponentActivity() {
         if (isGranted) {
             launchScanner()
         } else {
-            viewModel.showError("Para escanear códigos QR necesitas permitir el acceso a la cámara.")
+            viewModel.showError("Para escanear codigos QR necesitas permitir el acceso a la camara.")
         }
     }
 
@@ -103,6 +106,9 @@ class MainActivity : ComponentActivity() {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val historyItems by historyViewModel.historyItems.collectAsStateWithLifecycle()
                 var selectedTab by rememberSaveable { mutableStateOf(AppTab.SCAN) }
+                var settingsSubScreen by rememberSaveable {
+                    mutableStateOf(SettingsSubScreen.HOME)
+                }
                 var selectedHistoryFilter by rememberSaveable { mutableStateOf(HistoryFilter.ALL) }
                 var selectedHistoryItem by remember { mutableStateOf<HistoryUiItem?>(null) }
                 var pendingHistoryOpenItem by remember { mutableStateOf<HistoryUiItem?>(null) }
@@ -111,14 +117,25 @@ class MainActivity : ComponentActivity() {
 
                 fun switchTab(tab: AppTab) {
                     selectedTab = tab
+                    settingsSubScreen = SettingsSubScreen.HOME
                     showClearHistoryDialog = false
                     showHistoryOpenLinkConfirmation = false
                     pendingHistoryOpenItem = null
                     selectedHistoryItem = null
                 }
 
-                BackHandler(enabled = selectedTab != AppTab.SCAN) {
-                    switchTab(AppTab.SCAN)
+                BackHandler(
+                    enabled = selectedTab != AppTab.SCAN ||
+                        settingsSubScreen != SettingsSubScreen.HOME,
+                ) {
+                    if (
+                        selectedTab == AppTab.SETTINGS &&
+                        settingsSubScreen != SettingsSubScreen.HOME
+                    ) {
+                        settingsSubScreen = SettingsSubScreen.HOME
+                    } else {
+                        switchTab(AppTab.SCAN)
+                    }
                 }
 
                 when (selectedTab) {
@@ -143,19 +160,49 @@ class MainActivity : ComponentActivity() {
                         onSettingsTabClick = { switchTab(AppTab.SETTINGS) },
                     )
 
-                    AppTab.SETTINGS -> SettingsPlaceholderScreen(
-                        onScanTabClick = { switchTab(AppTab.SCAN) },
-                        onHistoryTabClick = { switchTab(AppTab.HISTORY) },
-                        onSettingsTabClick = {},
-                    )
+                    AppTab.SETTINGS -> when (settingsSubScreen) {
+                        SettingsSubScreen.HOME,
+                        SettingsSubScreen.APPEARANCE -> SettingsHomeScreen(
+                            onBackClick = { switchTab(AppTab.SCAN) },
+                            onHistoryShortcutClick = {
+                                settingsSubScreen = SettingsSubScreen.HOME
+                                switchTab(AppTab.HISTORY)
+                            },
+                            onHistorySettingsClick = {
+                                settingsSubScreen = SettingsSubScreen.HISTORY
+                            },
+                            onPrivacyClick = {
+                                settingsSubScreen = SettingsSubScreen.PRIVACY
+                            },
+                            onScanTabClick = { switchTab(AppTab.SCAN) },
+                            onHistoryTabClick = { switchTab(AppTab.HISTORY) },
+                            onSettingsTabClick = {},
+                        )
+
+                        SettingsSubScreen.HISTORY -> HistorySettingsScreen(
+                            hasHistory = historyItems.isNotEmpty(),
+                            onBackClick = { settingsSubScreen = SettingsSubScreen.HOME },
+                            onClearHistoryClick = { showClearHistoryDialog = true },
+                            onScanTabClick = { switchTab(AppTab.SCAN) },
+                            onHistoryTabClick = { switchTab(AppTab.HISTORY) },
+                            onSettingsTabClick = {},
+                        )
+
+                        SettingsSubScreen.PRIVACY -> PrivacySettingsScreen(
+                            onBackClick = { settingsSubScreen = SettingsSubScreen.HOME },
+                            onScanTabClick = { switchTab(AppTab.SCAN) },
+                            onHistoryTabClick = { switchTab(AppTab.HISTORY) },
+                            onSettingsTabClick = {},
+                        )
+                    }
                 }
 
                 if (showClearHistoryDialog) {
                     AlertDialog(
                         onDismissRequest = { showClearHistoryDialog = false },
-                        title = { Text("¿Borrar historial?") },
+                        title = { Text("Borrar historial") },
                         text = {
-                            Text("Esta acción eliminará los análisis guardados en este dispositivo.")
+                            Text("Esta accion eliminara los analisis guardados en este dispositivo.")
                         },
                         confirmButton = {
                             TextButton(
@@ -184,7 +231,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onRequestOpenLink = {
                             // Historial: confirmamos siempre la apertura, incluso si el
-                            // análisis fue SAFE+COMPLETE, porque es un snapshot temporal.
+                            // analisis fue SAFE+COMPLETE, porque es un snapshot temporal.
                             pendingHistoryOpenItem = historyItem
                             selectedHistoryItem = null
                             showHistoryOpenLinkConfirmation = true
@@ -256,7 +303,7 @@ class MainActivity : ComponentActivity() {
     private fun launchScanner() {
         val options = ScanOptions().apply {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            setPrompt("Enfoca el código QR")
+            setPrompt("Enfoca el codigo QR")
             setBeepEnabled(false)
             setBarcodeImageEnabled(false)
             setOrientationLocked(false)
@@ -267,7 +314,7 @@ class MainActivity : ComponentActivity() {
 
     private fun openUrlInExternalBrowser(url: String) {
         val cleanUrl = url.trim()
-        val invalidUrlMessage = "No se puede abrir este enlace porque no parece una URL web válida."
+        val invalidUrlMessage = "No se puede abrir este enlace porque no parece una URL web valida."
         if (cleanUrl.isBlank()) {
             Toast.makeText(
                 this,
@@ -297,7 +344,7 @@ class MainActivity : ComponentActivity() {
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(
                 this,
-                "No se encontró una aplicación compatible para abrir el enlace.",
+                "No se encontro una aplicacion compatible para abrir el enlace.",
                 Toast.LENGTH_SHORT,
             ).show()
         } catch (_: SecurityException) {
@@ -317,15 +364,18 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun SettingsPlaceholderScreen(
+private fun SettingsSubScreenPlaceholder(
+    title: String,
+    message: String,
+    onBackClick: () -> Unit,
     onScanTabClick: () -> Unit,
     onHistoryTabClick: () -> Unit,
     onSettingsTabClick: () -> Unit,
 ) {
     Scaffold(
+        containerColor = QrBackground,
         bottomBar = {
-            SimpleTabBar(
-                selectedTab = AppTab.SETTINGS,
+            SettingsBottomBar(
                 onScanTabClick = onScanTabClick,
                 onHistoryTabClick = onHistoryTabClick,
                 onSettingsTabClick = onSettingsTabClick,
@@ -337,51 +387,21 @@ private fun SettingsPlaceholderScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.Center,
         ) {
+            SettingsTopBar(
+                title = title,
+                onBackClick = onBackClick,
+            )
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Ajustes",
+                text = title,
                 style = MaterialTheme.typography.headlineMedium,
             )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Sección pendiente para futuras versiones.",
+                text = message,
                 style = MaterialTheme.typography.bodyLarge,
             )
-        }
-    }
-}
-
-@Composable
-private fun SimpleTabBar(
-    selectedTab: AppTab,
-    onScanTabClick: () -> Unit,
-    onHistoryTabClick: () -> Unit,
-    onSettingsTabClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-    ) {
-        Button(
-            onClick = onScanTabClick,
-            enabled = selectedTab != AppTab.SCAN,
-        ) {
-            Text("Escanear")
-        }
-        Button(
-            onClick = onHistoryTabClick,
-            enabled = selectedTab != AppTab.HISTORY,
-        ) {
-            Text("Historial")
-        }
-        Button(
-            onClick = onSettingsTabClick,
-            enabled = selectedTab != AppTab.SETTINGS,
-        ) {
-            Text("Ajustes")
         }
     }
 }
