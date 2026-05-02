@@ -2,6 +2,7 @@ package com.carolina.analizadorseguridadqr.data.local.history
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
@@ -17,7 +18,7 @@ interface ScanHistoryDao {
     )
     fun observeRecentScans(limit: Int = 100): Flow<List<ScanHistoryEntity>>
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(scan: ScanHistoryEntity)
 
     @Transaction

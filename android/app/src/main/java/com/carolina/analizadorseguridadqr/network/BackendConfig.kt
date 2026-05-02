@@ -1,5 +1,7 @@
 package com.carolina.analizadorseguridadqr.network
 
+import com.carolina.analizadorseguridadqr.BuildConfig
+
 object BackendConfig {
     /*
      * SOLO DESARROLLO LOCAL:
@@ -14,5 +16,5 @@ object BackendConfig {
      * - No usar 127.0.0.1 como destino.
      * - Desactivar cleartextTraffic en AndroidManifest.xml.
      */
-    const val BASE_URL = "http://127.0.0.1:8000/"
+    const val BASE_URL = BuildConfig.BACKEND_BASE_URL
 }

@@ -608,7 +608,7 @@ private fun NotWebIllustration() {
 
 @Composable
 private fun AnalysisErrorIllustration() {
-    // Tarjeta limpia con nube "sin conexion" y punto rojo decorativo.
+    // Tarjeta limpia con nube "sin conexión" y punto rojo decorativo.
     Box(
         modifier = Modifier.size(130.dp),
         contentAlignment = Alignment.Center,
@@ -1106,7 +1106,7 @@ private enum class BottomBarItem {
     Settings,
 }
 
-// Barra inferior solo visual en esta fase; sin navegación funcional todavía.
+// Barra inferior reutilizable para las pantallas principales de la app.
 @Composable
 private fun VisualBottomBar(
     selected: BottomBarItem,

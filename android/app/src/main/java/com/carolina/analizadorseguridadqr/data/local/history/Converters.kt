@@ -16,10 +16,24 @@ class Converters {
     fun toReasons(value: String): List<String> {
         return try {
             val type = object : TypeToken<List<String>>() {}.type
-            gson.fromJson<List<String>>(value, type) ?: emptyList()
+            val parsedReasons = gson.fromJson<List<String>>(value, type) ?: emptyList()
+            parsedReasons
+                .asSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .map { it.take(MAX_REASON_LENGTH) }
+                .distinct()
+                .take(MAX_REASONS)
+                .toList()
         } catch (_: Exception) {
             // Si el contenido no es parseable, devolvemos una lista segura vacía.
             emptyList()
         }
     }
+
+    companion object {
+        private const val MAX_REASON_LENGTH = 120
+        private const val MAX_REASONS = 4
+    }
 }
+

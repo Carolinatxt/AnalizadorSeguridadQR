@@ -1,11 +1,12 @@
 package com.carolina.analizadorseguridadqr.viewmodel
 
-import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.carolina.analizadorseguridadqr.data.repository.ScanHistoryRepository
 import com.carolina.analizadorseguridadqr.network.AnalysisService
+import com.carolina.analizadorseguridadqr.security.UnsupportedWebUrlReason
+import com.carolina.analizadorseguridadqr.security.getUnsupportedWebUrlReason
 import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
 import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
@@ -64,23 +65,7 @@ class MainViewModel(
             return
         }
 
-        val parsed = try {
-            Uri.parse(content)
-        } catch (exception: Exception) {
-            Log.w(
-                TAG,
-                "Uri.parse fallo para contenido QR (tipo_excepcion=${exception.javaClass.simpleName})",
-            )
-            _uiState.value = ScanUiState.NotAWebUrl(
-                "El código QR no contiene un enlace web válido (http o https).",
-            )
-            return
-        }
-        val scheme = parsed.scheme?.lowercase(Locale.ROOT)
-        val hasWebScheme = scheme == "http" || scheme == "https"
-        val hasHost = !parsed.host.isNullOrBlank()
-
-        if (!hasWebScheme || !hasHost) {
+        if (!isValidWebUrl(content)) {
             _uiState.value = ScanUiState.NotAWebUrl(
                 "El código QR no contiene un enlace web válido (http o https).",
             )
@@ -111,6 +96,21 @@ class MainViewModel(
         }
 
         analyzeUrl(url)
+    }
+
+    fun analyzeUrlFromHistory(url: String) {
+        val trimmedUrl = url.trim()
+        if (!isValidWebUrl(trimmedUrl)) {
+            _uiState.value = ScanUiState.NotAWebUrl(
+                "El enlace guardado ya no tiene un formato web válido.",
+            )
+            return
+        }
+
+        // Reutilizamos la misma URL validada para el flujo de reintento y análisis.
+        Log.d(TAG, "Reanálisis solicitado desde historial")
+        lastValidWebUrl = trimmedUrl
+        analyzeUrl(trimmedUrl)
     }
 
     private fun analyzeUrl(url: String) {
@@ -198,6 +198,32 @@ class MainViewModel(
         }
     }
 
+    // Fuente unica de verdad para aceptar solo enlaces web HTTP/HTTPS con host.
+    private fun isValidWebUrl(value: String): Boolean {
+        return when (getUnsupportedWebUrlReason(value)) {
+            null -> true
+            UnsupportedWebUrlReason.TOO_LONG -> {
+                Log.w(TAG, "URL rechazada: supera la longitud máxima permitida.")
+                false
+            }
+            UnsupportedWebUrlReason.CONTROL_CHARS -> {
+                Log.w(TAG, "URL rechazada: contiene caracteres de control.")
+                false
+            }
+            UnsupportedWebUrlReason.USERINFO -> {
+                Log.w(TAG, "URL rechazada: contiene userinfo.")
+                false
+            }
+            UnsupportedWebUrlReason.PARSE_ERROR -> {
+                Log.w(TAG, "Uri.parse falló al validar URL web.")
+                false
+            }
+            UnsupportedWebUrlReason.UNSUPPORTED_WEB_TARGET -> {
+                false
+            }
+        }
+    }
+
     private fun safeLogValue(value: String): String {
         return value
             .replace('\n', ' ')
@@ -207,8 +233,4 @@ class MainViewModel(
             .take(MAX_LOG_VALUE_LENGTH)
     }
 }
-
-
-
-
 

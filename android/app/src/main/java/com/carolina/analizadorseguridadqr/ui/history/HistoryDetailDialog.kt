@@ -3,20 +3,25 @@ package com.carolina.analizadorseguridadqr.ui.history
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,87 +34,125 @@ fun HistoryDetailDialog(
     item: HistoryUiItem,
     onDismiss: () -> Unit,
     onRequestOpenLink: () -> Unit,
+    onReanalyzeLink: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Detalle del analisis",
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                DetailLabel("Dominio")
-                DetailValue(item.displayDomain)
-                Spacer(modifier = Modifier.height(10.dp))
-
-                DetailLabel("URL")
-                Box(
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .widthIn(max = 560.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "Detalle del análisis",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(12.dp),
-                        )
-                        .padding(12.dp),
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
                 ) {
+                    DetailLabel("Dominio")
+                    DetailValue(item.displayDomain)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    DetailLabel("URL")
                     Text(
-                        text = item.url,
+                        text = "La URL completa puede contener información sensible.",
                         style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        softWrap = false,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-
-                DetailLabel("Nivel de riesgo")
-                DetailValue(riskLevelLabel(item.riskLevel))
-                Spacer(modifier = Modifier.height(10.dp))
-
-                DetailLabel("Estado del analisis")
-                DetailValue(analysisStatusLabel(item.analysisStatus))
-                Spacer(modifier = Modifier.height(10.dp))
-
-                DetailLabel("Resumen")
-                DetailValue(
-                    text = item.summary,
-                    maxLines = 8,
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                DetailLabel("Motivos")
-                if (item.reasons.isEmpty()) {
-                    DetailValue("Sin motivos adicionales.")
-                } else {
-                    item.reasons.forEach { reason ->
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(12.dp),
+                            )
+                            .padding(12.dp),
+                    ) {
                         Text(
-                            text = "- $reason",
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
+                            text = item.url,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            softWrap = false,
                         )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    DetailLabel("Nivel de riesgo")
+                    DetailValue(riskLevelLabel(item.riskLevel))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    DetailLabel("Estado del análisis")
+                    DetailValue(analysisStatusLabel(item.analysisStatus))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    DetailLabel("Resumen")
+                    DetailValue(
+                        text = item.summary,
+                        maxLines = 8,
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    DetailLabel("Motivos")
+                    if (item.reasons.isEmpty()) {
+                        DetailValue("Sin motivos adicionales.")
+                    } else {
+                        item.reasons.forEach { reason ->
+                            Text(
+                                text = "- $reason",
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onReanalyzeLink,
+                    ) {
+                        Text("Reanalizar enlace")
+                    }
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onRequestOpenLink,
+                    ) {
+                        Text("Abrir sin reanalizar")
+                    }
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onDismiss,
+                    ) {
+                        Text("Cerrar")
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onRequestOpenLink) {
-                Text("Abrir enlace")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cerrar")
-            }
-        },
-    )
+        }
+    }
 }
 
 @Composable
 fun HistoryOpenLinkConfirmationDialog(
     openLinkPolicy: OpenLinkPolicy,
+    riskLevel: RiskLevel,
     analysisStatus: AnalysisStatus,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
@@ -121,28 +164,34 @@ fun HistoryOpenLinkConfirmationDialog(
         analysisStatus == AnalysisStatus.UNKNOWN
     val title = when {
         isDangerous -> "Enlace peligroso"
-        isSafeSnapshot -> "Confirmar apertura"
+        isSafeSnapshot -> "Abrir enlace guardado"
         else -> "Antes de continuar"
     }
     val message = if (isDangerous) {
-        "Este enlace ha sido relacionado con una amenaza grave. Abrirlo puede ponerte en riesgo. " +
-            "Si continuas, se abrira fuera de la app en el navegador del dispositivo."
+        "Este enlace fue clasificado como peligroso en un análisis anterior. " +
+            "Abrirlo puede ponerte en riesgo. Si continúas, se abrirá fuera de la app " +
+            "en el navegador del dispositivo."
     } else if (isSafeSnapshot) {
-        "Este resultado de seguridad corresponde a un momento anterior y puede haber cambiado. " +
-            "Si continuas, se abrira fuera de la app en el navegador del dispositivo."
+        "Este enlace fue clasificado como seguro en un análisis anterior, " +
+            "pero su estado podría haber cambiado desde entonces. Si continúas, " +
+            "se abrirá fuera de la app en el navegador del dispositivo."
     } else {
         if (isAnalysisIncompleteOrUncertain) {
-            "Este enlace no se ha clasificado como seguro o el analisis no pudo completarse del todo. " +
-                "Si continuas, se abrira fuera de la app en el navegador del dispositivo."
+            "Este análisis anterior no pudo completarse del todo o su estado es incierto. " +
+                "No hay base suficiente para considerar el enlace seguro. Si continúas, " +
+                "se abrirá fuera de la app en el navegador del dispositivo."
+        } else if (riskLevel == RiskLevel.SUSPICIOUS) {
+            "Este enlace fue clasificado como sospechoso en un análisis anterior. " +
+                "No hay base suficiente para considerarlo seguro. Si continúas, " +
+                "se abrirá fuera de la app en el navegador del dispositivo."
         } else {
-            "Este enlace no se ha clasificado como seguro. " +
-                "Si continuas, se abrira fuera de la app en el navegador del dispositivo."
+            "Este enlace no se ha clasificado como seguro. Si continúas, " +
+                "se abrirá fuera de la app en el navegador del dispositivo."
         }
     }
     val confirmText = when {
         isDangerous -> "Entiendo el riesgo"
-        isSafeSnapshot -> "Abrir enlace"
-        else -> "Abrir de todas formas"
+        else -> "Abrir sin reanalizar"
     }
 
     AlertDialog(

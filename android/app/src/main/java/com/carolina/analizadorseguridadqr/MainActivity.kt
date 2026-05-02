@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.carolina.analizadorseguridadqr.data.local.history.AppDatabase
 import com.carolina.analizadorseguridadqr.data.repository.ScanHistoryRepository
+import com.carolina.analizadorseguridadqr.security.isSupportedWebUrl
 import com.carolina.analizadorseguridadqr.ui.history.HistoryFilter
 import com.carolina.analizadorseguridadqr.ui.history.HistoryDetailDialog
 import com.carolina.analizadorseguridadqr.ui.history.HistoryOpenLinkConfirmationDialog
@@ -54,7 +55,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import java.util.Locale
 
 // Activity minima: conecta ViewModel + Compose.
 // Aqui no metemos logica de negocio, solo coordinacion de UI.
@@ -105,6 +105,7 @@ class MainActivity : ComponentActivity() {
                 var selectedTab by rememberSaveable { mutableStateOf(AppTab.SCAN) }
                 var selectedHistoryFilter by rememberSaveable { mutableStateOf(HistoryFilter.ALL) }
                 var selectedHistoryItem by remember { mutableStateOf<HistoryUiItem?>(null) }
+                var pendingHistoryOpenItem by remember { mutableStateOf<HistoryUiItem?>(null) }
                 var showClearHistoryDialog by rememberSaveable { mutableStateOf(false) }
                 var showHistoryOpenLinkConfirmation by rememberSaveable { mutableStateOf(false) }
 
@@ -112,6 +113,7 @@ class MainActivity : ComponentActivity() {
                     selectedTab = tab
                     showClearHistoryDialog = false
                     showHistoryOpenLinkConfirmation = false
+                    pendingHistoryOpenItem = null
                     selectedHistoryItem = null
                 }
 
@@ -176,30 +178,54 @@ class MainActivity : ComponentActivity() {
                 selectedHistoryItem?.let { historyItem ->
                     HistoryDetailDialog(
                         item = historyItem,
-                        onDismiss = { selectedHistoryItem = null },
+                        onDismiss = {
+                            pendingHistoryOpenItem = null
+                            selectedHistoryItem = null
+                        },
                         onRequestOpenLink = {
                             // Historial: confirmamos siempre la apertura, incluso si el
                             // análisis fue SAFE+COMPLETE, porque es un snapshot temporal.
+                            pendingHistoryOpenItem = historyItem
+                            selectedHistoryItem = null
                             showHistoryOpenLinkConfirmation = true
+                        },
+                        onReanalyzeLink = {
+                            val urlToReanalyze = historyItem.url
+
+                            selectedHistoryItem = null
+                            pendingHistoryOpenItem = null
+                            showHistoryOpenLinkConfirmation = false
+                            showClearHistoryDialog = false
+
+                            if (!urlToReanalyze.isNullOrBlank()) {
+                                switchTab(AppTab.SCAN)
+                                viewModel.analyzeUrlFromHistory(urlToReanalyze)
+                            }
                         },
                     )
                 }
 
                 if (showHistoryOpenLinkConfirmation) {
-                    val currentItem = selectedHistoryItem
+                    val currentItem = pendingHistoryOpenItem
                     if (currentItem == null) {
                         showHistoryOpenLinkConfirmation = false
                     } else {
-                        HistoryOpenLinkConfirmationDialog(
-                            openLinkPolicy = resolveOpenLinkPolicy(
-                                riskLevel = currentItem.riskLevel,
-                                analysisStatus = currentItem.analysisStatus,
-                            ),
+                        val openLinkPolicy = resolveOpenLinkPolicy(
+                            riskLevel = currentItem.riskLevel,
                             analysisStatus = currentItem.analysisStatus,
-                            onDismiss = { showHistoryOpenLinkConfirmation = false },
+                        )
+                        HistoryOpenLinkConfirmationDialog(
+                            openLinkPolicy = openLinkPolicy,
+                            riskLevel = currentItem.riskLevel,
+                            analysisStatus = currentItem.analysisStatus,
+                            onDismiss = {
+                                pendingHistoryOpenItem = null
+                                showHistoryOpenLinkConfirmation = false
+                            },
                             onConfirm = {
                                 showHistoryOpenLinkConfirmation = false
                                 val urlToOpen = currentItem.url
+                                pendingHistoryOpenItem = null
                                 selectedHistoryItem = null
                                 openUrlInExternalBrowser(urlToOpen)
                             },
@@ -241,38 +267,26 @@ class MainActivity : ComponentActivity() {
 
     private fun openUrlInExternalBrowser(url: String) {
         val cleanUrl = url.trim()
+        val invalidUrlMessage = "No se puede abrir este enlace porque no parece una URL web válida."
         if (cleanUrl.isBlank()) {
             Toast.makeText(
                 this,
-                "No se puede abrir este enlace porque no parece una URL web válida.",
+                invalidUrlMessage,
                 Toast.LENGTH_SHORT,
             ).show()
             return
         }
 
-        val parsedUri = try {
-            Uri.parse(cleanUrl)
-        } catch (_: Exception) {
+        if (!isSupportedWebUrl(cleanUrl)) {
             Toast.makeText(
                 this,
-                "No se puede abrir este enlace porque no parece una URL web válida.",
+                invalidUrlMessage,
                 Toast.LENGTH_SHORT,
             ).show()
             return
         }
 
-        // Fail-secure: solo permitimos enlaces web HTTP/HTTPS con host.
-        val normalizedScheme = parsedUri.scheme?.lowercase(Locale.ROOT)
-        val hasAllowedScheme = normalizedScheme == "http" || normalizedScheme == "https"
-        val hasHost = !parsedUri.host.isNullOrBlank()
-        if (!hasAllowedScheme || !hasHost) {
-            Toast.makeText(
-                this,
-                "No se puede abrir este enlace porque no parece una URL web válida.",
-                Toast.LENGTH_SHORT,
-            ).show()
-            return
-        }
+        val parsedUri = Uri.parse(cleanUrl)
 
         val externalOpenIntent = Intent(Intent.ACTION_VIEW, parsedUri).apply {
             addCategory(Intent.CATEGORY_BROWSABLE)
@@ -330,7 +344,7 @@ private fun SettingsPlaceholderScreen(
                 style = MaterialTheme.typography.headlineMedium,
             )
             Text(
-                text = "Seccion temporal para navegacion por pestañas.",
+                text = "Sección pendiente para futuras versiones.",
                 style = MaterialTheme.typography.bodyLarge,
             )
         }

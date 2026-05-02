@@ -48,7 +48,7 @@ class ScanHistoryRepository(
             throw exception
         } catch (exception: Exception) {
             // El historial es secundario: no debe romper el flujo principal.
-            Log.w(TAG, "No se pudo guardar el analisis en historial local", exception)
+            Log.w(TAG, "No se pudo guardar el análisis en historial local", exception)
         }
     }
 
@@ -65,8 +65,11 @@ class ScanHistoryRepository(
 
     private fun extractDisplayDomain(url: String): String {
         return try {
-            val uri = Uri.parse(url)
-            uri.host ?: "desconocido"
+            val uri = Uri.parse(url.trim())
+            uri.host
+                ?.lowercase(Locale.ROOT)
+                ?.take(MAX_DISPLAY_DOMAIN_LENGTH)
+                ?: "desconocido"
         } catch (_: Exception) {
             "desconocido"
         }
@@ -97,6 +100,7 @@ class ScanHistoryRepository(
         private const val MAX_SUMMARY_LENGTH = 280
         private const val MAX_REASON_LENGTH = 120
         private const val MAX_REASONS = 4
+        private const val MAX_DISPLAY_DOMAIN_LENGTH = 120
         private const val DEFAULT_SUMMARY_FALLBACK = "Sin resumen disponible."
     }
 }
