@@ -18,12 +18,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -47,26 +49,49 @@ import com.carolina.analizadorseguridadqr.ui.theme.QrIconMuted
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextPrimary
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextSecondary
 
+/**
+ * Barra superior reutilizable para Ajustes.
+ *
+ * `actionContentDescription` es obligatoria cuando `actionIcon` no es null.
+ */
 @Composable
 fun SettingsTopBar(
     title: String,
     onBackClick: () -> Unit,
+    showBackButton: Boolean = true,
     actionIcon: ImageVector? = null,
     actionContentDescription: String? = null,
     onActionClick: (() -> Unit)? = null,
 ) {
+    val resolvedActionContentDescription = if (actionIcon != null) {
+        actionContentDescription ?: error(
+            "actionContentDescription es obligatorio cuando actionIcon no es null",
+        )
+    } else {
+        null
+    }
+    val resolvedActionClick = if (actionIcon != null) {
+        onActionClick ?: error("onActionClick es obligatorio cuando actionIcon no es null")
+    } else {
+        null
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBackClick) {
-            Icon(
-                imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Volver",
-                tint = QrTextSecondary,
-            )
+        if (showBackButton) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Volver",
+                    tint = QrTextSecondary,
+                )
+            }
+        } else {
+            Spacer(modifier = Modifier.width(48.dp))
         }
         Text(
             text = title,
@@ -75,11 +100,11 @@ fun SettingsTopBar(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f),
         )
-        if (actionIcon != null && onActionClick != null) {
-            IconButton(onClick = onActionClick) {
+        if (actionIcon != null && resolvedActionClick != null) {
+            IconButton(onClick = resolvedActionClick) {
                 Icon(
                     imageVector = actionIcon,
-                    contentDescription = actionContentDescription,
+                    contentDescription = resolvedActionContentDescription,
                     tint = QrTextSecondary,
                 )
             }
@@ -105,10 +130,12 @@ fun SettingsOptionCard(
     subtitle: String,
     icon: ImageVector,
     onClick: () -> Unit,
+    testTag: String? = null,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .applyOptionalTestTag(testTag)
             .clip(RoundedCornerShape(24.dp))
             .background(QrCardBackground)
             .semantics { role = Role.Button }
@@ -137,10 +164,10 @@ fun SettingsOptionCard(
                 )
             }
             Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = ">",
-                style = MaterialTheme.typography.titleLarge,
-                color = QrIconMuted,
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = QrIconMuted,
             )
         }
     }
@@ -151,6 +178,11 @@ fun SettingsInfoCard(
     title: String,
     body: String,
     icon: ImageVector,
+    titleColor: Color = QrTextPrimary,
+    bodyColor: Color = QrTextSecondary,
+    iconTint: Color = QrGreenDark,
+    iconBackground: Color = QrGreenSoft,
+    iconContentDescription: String? = null,
 ) {
     Box(
         modifier = Modifier
@@ -160,20 +192,25 @@ fun SettingsInfoCard(
             .padding(horizontal = 18.dp, vertical = 18.dp),
     ) {
         Row(verticalAlignment = Alignment.Top) {
-            SettingsLeadingIcon(icon = icon)
+            SettingsLeadingIcon(
+                icon = icon,
+                iconTint = iconTint,
+                iconBackground = iconBackground,
+                contentDescription = iconContentDescription,
+            )
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = QrTextPrimary,
+                    color = titleColor,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = body,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = QrTextSecondary,
+                    color = bodyColor,
                 )
             }
         }
@@ -186,6 +223,8 @@ fun SettingsBottomBar(
     onHistoryTabClick: () -> Unit,
     onSettingsTabClick: () -> Unit,
 ) {
+    // Este componente es exclusivo de la sección Ajustes.
+    // La pestaña Ajustes siempre aparece como seleccionada.
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -217,20 +256,29 @@ fun SettingsBottomBar(
 }
 
 @Composable
-private fun SettingsLeadingIcon(icon: ImageVector) {
+private fun SettingsLeadingIcon(
+    icon: ImageVector,
+    iconTint: Color = QrGreenDark,
+    iconBackground: Color = QrGreenSoft,
+    contentDescription: String? = null,
+) {
     Box(
         modifier = Modifier
             .size(52.dp)
             .clip(CircleShape)
-            .background(QrGreenSoft),
+            .background(iconBackground),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
-            tint = QrGreenDark,
+            contentDescription = contentDescription,
+            tint = iconTint,
         )
     }
+}
+
+private fun Modifier.applyOptionalTestTag(testTag: String?): Modifier {
+    return if (testTag.isNullOrBlank()) this else this.testTag(testTag)
 }
 
 @Composable

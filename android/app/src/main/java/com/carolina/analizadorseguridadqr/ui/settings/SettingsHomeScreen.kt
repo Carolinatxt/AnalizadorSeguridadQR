@@ -22,6 +22,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
 import com.carolina.analizadorseguridadqr.ui.theme.QrBackground
+import com.carolina.analizadorseguridadqr.ui.theme.QrBottomBarBackground
+import com.carolina.analizadorseguridadqr.ui.theme.QrIconMuted
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextPrimary
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextSecondary
 
@@ -55,13 +57,14 @@ fun SettingsHomeScreen(
             SettingsTopBar(
                 title = "Ajustes",
                 onBackClick = onBackClick,
+                showBackButton = false,
                 actionIcon = Icons.Outlined.History,
                 actionContentDescription = "Abrir historial",
                 onActionClick = onHistoryShortcutClick,
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-            SettingsSectionLabel(text = "CONFIGURACION GENERAL")
+            SettingsSectionLabel(text = "CONFIGURACIÓN GENERAL")
             Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = "QR Scanner Security",
@@ -80,19 +83,25 @@ fun SettingsHomeScreen(
 
             Spacer(modifier = Modifier.height(26.dp))
 
-            // La apariencia solo se activara cuando el tema pueda
+            // La apariencia solo se activará cuando el tema pueda
             // guardarse y aplicarse de forma real en toda la app.
             SettingsInfoCard(
                 title = "Apariencia",
                 body = "Disponible en futuras versiones.",
                 icon = Icons.Outlined.Palette,
+                titleColor = QrTextSecondary,
+                bodyColor = QrTextSecondary,
+                iconTint = QrIconMuted,
+                iconBackground = QrBottomBarBackground,
+                iconContentDescription = "Apariencia, no disponible",
             )
             Spacer(modifier = Modifier.height(14.dp))
             SettingsOptionCard(
                 title = "Ajustes Historial",
-                subtitle = "Registro local y borrado de analisis",
+                subtitle = "Registro local y borrado de análisis",
                 icon = Icons.Outlined.History,
                 onClick = onHistorySettingsClick,
+                testTag = "settings_history_card",
             )
             Spacer(modifier = Modifier.height(14.dp))
             SettingsOptionCard(
@@ -100,6 +109,7 @@ fun SettingsHomeScreen(
                 subtitle = "Uso de datos y almacenamiento local",
                 icon = Icons.Outlined.Security,
                 onClick = onPrivacyClick,
+                testTag = "settings_privacy_card",
             )
             Spacer(modifier = Modifier.height(18.dp))
         }

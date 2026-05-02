@@ -63,36 +63,36 @@ fun PrivacySettingsScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Explicamos de forma clara que datos se guardan localmente y que ocurre durante cada analisis.",
+                text = "Explicamos de forma clara qué ocurre durante cada análisis y qué datos permanecen en tu dispositivo.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = QrTextSecondary,
             )
             Spacer(modifier = Modifier.height(24.dp))
 
             SettingsInfoCard(
-                title = "Almacenamiento local",
-                body = "El historial de resultados se guarda localmente en este dispositivo. No se sincroniza en la nube ni se almacena como historial en el servidor de la aplicacion.",
-                icon = Icons.Outlined.CloudOff,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            SettingsInfoCard(
-                title = "Durante el analisis",
-                body = "Durante el analisis, las URLs escaneadas se envian al servidor de analisis de la aplicacion y a proveedores externos de seguridad, como Google Web Risk e IPQualityScore, para comprobar si existen amenazas conocidas.",
+                title = "Durante el análisis",
+                body = "Durante el análisis, las URLs escaneadas se envían al servidor de análisis de la aplicación y a proveedores externos de seguridad, como Google Web Risk e IPQualityScore, para comprobar si existen amenazas conocidas.",
                 icon = Icons.Outlined.Security,
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             SettingsInfoCard(
                 title = "Proveedores externos",
-                body = "Los proveedores externos pueden registrar o tratar las URLs analizadas segun sus propias politicas de privacidad.",
+                body = "Los proveedores externos pueden registrar o tratar las URLs analizadas según sus propias políticas de privacidad.",
                 icon = Icons.Outlined.Language,
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             SettingsInfoCard(
-                title = "Prototipo academico",
-                body = "Esta aplicacion es un prototipo academico. No recoge ni sincroniza datos personales de forma intencionada. Los proveedores externos pueden tratar las URLs segun sus propias politicas.",
+                title = "Almacenamiento local",
+                body = "El historial de resultados se guarda únicamente en este dispositivo. No se sincroniza en la nube ni se almacena como historial en el servidor de la aplicación.",
+                icon = Icons.Outlined.CloudOff,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SettingsInfoCard(
+                title = "Prototipo académico",
+                body = "Esta aplicación es un prototipo académico. No solicita datos personales de forma intencionada ni sincroniza el historial con servidores externos. Los proveedores externos pueden tratar las URLs analizadas según sus propias políticas.",
                 icon = Icons.Outlined.Info,
             )
             Spacer(modifier = Modifier.height(18.dp))

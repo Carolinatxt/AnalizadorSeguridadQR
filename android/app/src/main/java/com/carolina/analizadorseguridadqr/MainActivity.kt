@@ -13,24 +13,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.carolina.analizadorseguridadqr.data.local.history.AppDatabase
@@ -48,19 +38,16 @@ import com.carolina.analizadorseguridadqr.ui.screen.MainScreen
 import com.carolina.analizadorseguridadqr.ui.settings.HistorySettingsScreen
 import com.carolina.analizadorseguridadqr.ui.settings.PrivacySettingsScreen
 import com.carolina.analizadorseguridadqr.ui.security.resolveOpenLinkPolicy
-import com.carolina.analizadorseguridadqr.ui.settings.SettingsBottomBar
 import com.carolina.analizadorseguridadqr.ui.settings.SettingsHomeScreen
 import com.carolina.analizadorseguridadqr.ui.settings.SettingsSubScreen
-import com.carolina.analizadorseguridadqr.ui.settings.SettingsTopBar
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
-import com.carolina.analizadorseguridadqr.ui.theme.QrBackground
 import com.carolina.analizadorseguridadqr.viewmodel.MainViewModel
 import com.carolina.analizadorseguridadqr.viewmodel.MainViewModelFactory
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 
-// Activity minima: conecta ViewModel + Compose.
-// Aqui no metemos logica de negocio, solo coordinacion de UI.
+// Activity mínima: conecta ViewModel + Compose.
+// Aquí no metemos lógica de negocio, solo coordinación de UI.
 class MainActivity : ComponentActivity() {
     private val historyRepository: ScanHistoryRepository by lazy {
         val database = AppDatabase.getInstance(applicationContext)
@@ -92,7 +79,7 @@ class MainActivity : ComponentActivity() {
         if (isGranted) {
             launchScanner()
         } else {
-            viewModel.showError("Para escanear codigos QR necesitas permitir el acceso a la camara.")
+            viewModel.showError("Para escanear códigos QR necesitas permitir el acceso a la cámara.")
         }
     }
 
@@ -202,7 +189,7 @@ class MainActivity : ComponentActivity() {
                         onDismissRequest = { showClearHistoryDialog = false },
                         title = { Text("Borrar historial") },
                         text = {
-                            Text("Esta accion eliminara los analisis guardados en este dispositivo.")
+                            Text("Esta acción eliminará los análisis guardados en este dispositivo.")
                         },
                         confirmButton = {
                             TextButton(
@@ -231,7 +218,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onRequestOpenLink = {
                             // Historial: confirmamos siempre la apertura, incluso si el
-                            // analisis fue SAFE+COMPLETE, porque es un snapshot temporal.
+                            // análisis fue SAFE+COMPLETE, porque es un snapshot temporal.
                             pendingHistoryOpenItem = historyItem
                             selectedHistoryItem = null
                             showHistoryOpenLinkConfirmation = true
@@ -283,7 +270,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // La Activity solo lanza escaner y delega el resultado al ViewModel.
+    // La Activity solo lanza el escáner y delega el resultado al ViewModel.
     private fun startScan() {
         viewModel.onScanButtonClicked()
 
@@ -303,7 +290,7 @@ class MainActivity : ComponentActivity() {
     private fun launchScanner() {
         val options = ScanOptions().apply {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            setPrompt("Enfoca el codigo QR")
+            setPrompt("Enfoca el código QR")
             setBeepEnabled(false)
             setBarcodeImageEnabled(false)
             setOrientationLocked(false)
@@ -314,7 +301,7 @@ class MainActivity : ComponentActivity() {
 
     private fun openUrlInExternalBrowser(url: String) {
         val cleanUrl = url.trim()
-        val invalidUrlMessage = "No se puede abrir este enlace porque no parece una URL web valida."
+        val invalidUrlMessage = "No se puede abrir este enlace porque no parece una URL web válida."
         if (cleanUrl.isBlank()) {
             Toast.makeText(
                 this,
@@ -344,7 +331,7 @@ class MainActivity : ComponentActivity() {
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(
                 this,
-                "No se encontro una aplicacion compatible para abrir el enlace.",
+                "No se encontró una aplicación compatible para abrir el enlace.",
                 Toast.LENGTH_SHORT,
             ).show()
         } catch (_: SecurityException) {
@@ -359,49 +346,6 @@ class MainActivity : ComponentActivity() {
                 "No se pudo abrir el enlace.",
                 Toast.LENGTH_SHORT,
             ).show()
-        }
-    }
-}
-
-@Composable
-private fun SettingsSubScreenPlaceholder(
-    title: String,
-    message: String,
-    onBackClick: () -> Unit,
-    onScanTabClick: () -> Unit,
-    onHistoryTabClick: () -> Unit,
-    onSettingsTabClick: () -> Unit,
-) {
-    Scaffold(
-        containerColor = QrBackground,
-        bottomBar = {
-            SettingsBottomBar(
-                onScanTabClick = onScanTabClick,
-                onHistoryTabClick = onHistoryTabClick,
-                onSettingsTabClick = onSettingsTabClick,
-            )
-        },
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp),
-        ) {
-            SettingsTopBar(
-                title = title,
-                onBackClick = onBackClick,
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge,
-            )
         }
     }
 }
