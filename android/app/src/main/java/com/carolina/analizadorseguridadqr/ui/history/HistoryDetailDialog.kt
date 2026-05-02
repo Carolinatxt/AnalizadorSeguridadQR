@@ -1,12 +1,15 @@
 package com.carolina.analizadorseguridadqr.ui.history
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -14,13 +17,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,6 +51,7 @@ fun HistoryDetailDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight(0.84f)
                 .padding(horizontal = 24.dp)
                 .widthIn(max = 560.dp),
             shape = RoundedCornerShape(28.dp),
@@ -47,8 +59,10 @@ fun HistoryDetailDialog(
             tonalElevation = 6.dp,
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
                     text = "Detalle del análisis",
@@ -58,7 +72,9 @@ fun HistoryDetailDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 420.dp)
+                        // En pantallas pequeñas, el contenido central se adapta
+                        // y hace scroll sin sacar los botones fuera del viewport.
+                        .weight(1f)
                         .verticalScroll(rememberScrollState()),
                 ) {
                     DetailLabel("Dominio")
@@ -119,29 +135,46 @@ fun HistoryDetailDialog(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ReanalyzeInfoBox(onReanalyzeLink = onReanalyzeLink)
                 }
 
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onReanalyzeLink,
-                    ) {
-                        Text("Reanalizar enlace")
-                    }
-                    TextButton(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onRequestOpenLink,
-                    ) {
-                        Text("Abrir sin reanalizar")
-                    }
-                    TextButton(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
                         onClick = onDismiss,
                     ) {
                         Text("Cerrar")
+                    }
+                    OutlinedButton(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        onClick = onRequestOpenLink,
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        ),
+                    ) {
+                        Text(
+                            text = "Abrir enlace",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }
@@ -191,7 +224,7 @@ fun HistoryOpenLinkConfirmationDialog(
     }
     val confirmText = when {
         isDangerous -> "Entiendo el riesgo"
-        else -> "Abrir sin reanalizar"
+        else -> "Abrir de todos modos"
     }
 
     AlertDialog(
@@ -209,6 +242,43 @@ fun HistoryOpenLinkConfirmationDialog(
             }
         },
     )
+}
+
+@Composable
+private fun ReanalyzeInfoBox(
+    onReanalyzeLink: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Este resultado corresponde a un análisis anterior.\n" +
+                    "El estado del enlace podría haber cambiado desde entonces.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Text(
+                text = "↻ Reanalizar ahora",
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .semantics { role = Role.Button }
+                    // La UI solo reenvía el callback existente.
+                    // MainActivity conserva el flujo de cierre, cambio de pestaña y análisis.
+                    .clickable(onClick = onReanalyzeLink)
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
 }
 
 @Composable
