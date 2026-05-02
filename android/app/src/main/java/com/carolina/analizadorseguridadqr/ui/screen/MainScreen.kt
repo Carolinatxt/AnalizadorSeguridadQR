@@ -62,6 +62,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.carolina.analizadorseguridadqr.ui.security.OpenLinkPolicy
+import com.carolina.analizadorseguridadqr.ui.security.resolveOpenLinkPolicy
 import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
 import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
@@ -92,35 +94,63 @@ fun MainScreen(
     onShowIdle: () -> Unit,
     onRetryAnalysis: () -> Unit,
     onOpenLink: (String) -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     when (uiState) {
-        ScanUiState.Idle -> HomeStateScreen(onStartScan = onStartScan)
-        ScanUiState.Loading -> LoadingStateScreen()
+        ScanUiState.Idle -> HomeStateScreen(
+            onStartScan = onStartScan,
+            onOpenHistory = onOpenHistory,
+            onOpenSettings = onOpenSettings,
+        )
+        ScanUiState.Loading -> LoadingStateScreen(
+            onOpenHistory = onOpenHistory,
+            onOpenSettings = onOpenSettings,
+        )
         is ScanUiState.NotAWebUrl -> NotWebUrlStateScreen(
             message = uiState.message,
             onStartScan = onStartScan,
             onShowIdle = onShowIdle,
+            onOpenHistory = onOpenHistory,
+            onOpenSettings = onOpenSettings,
         )
         is ScanUiState.Error -> ErrorStateScreen(
             message = uiState.message,
             onStartScan = onStartScan,
             onShowIdle = onShowIdle,
+            onOpenHistory = onOpenHistory,
+            onOpenSettings = onOpenSettings,
         )
         // ReadyToAnalyze es transitorio; visualmente usamos la pantalla de carga.
-        is ScanUiState.ReadyToAnalyze -> LoadingStateScreen()
+        is ScanUiState.ReadyToAnalyze -> LoadingStateScreen(
+            onOpenHistory = onOpenHistory,
+            onOpenSettings = onOpenSettings,
+        )
         is ScanUiState.AnalysisResult -> AnalysisResultStateScreen(
             result = uiState,
             onShowIdle = onShowIdle,
             onOpenLink = onOpenLink,
+            onOpenHistory = onOpenHistory,
+            onOpenSettings = onOpenSettings,
         )
     }
 }
 
 @Composable
-private fun HomeStateScreen(onStartScan: () -> Unit) {
+private fun HomeStateScreen(
+    onStartScan: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     Scaffold(
         containerColor = QrBackground,
-        bottomBar = { VisualBottomBar(selected = BottomBarItem.Scan) },
+        bottomBar = {
+            VisualBottomBar(
+                selected = BottomBarItem.Scan,
+                onHistoryClick = onOpenHistory,
+                onSettingsClick = onOpenSettings,
+            )
+        },
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -200,8 +230,20 @@ private fun HomeStateScreen(onStartScan: () -> Unit) {
 }
 
 @Composable
-private fun LoadingStateScreen() {
-    Scaffold(containerColor = QrBackground) { paddingValues ->
+private fun LoadingStateScreen(
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    Scaffold(
+        containerColor = QrBackground,
+        bottomBar = {
+            VisualBottomBar(
+                selected = BottomBarItem.Scan,
+                onHistoryClick = onOpenHistory,
+                onSettingsClick = onOpenSettings,
+            )
+        },
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -250,6 +292,8 @@ private fun NotWebUrlStateScreen(
     message: String,
     onStartScan: () -> Unit,
     onShowIdle: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val subtitle = if (message.isBlank()) {
         "La app solo puede analizar códigos QR que abren páginas web para garantizar tu seguridad digital."
@@ -271,6 +315,8 @@ private fun NotWebUrlStateScreen(
         onPrimaryClick = onStartScan,
         secondaryText = "Volver",
         onSecondaryClick = onShowIdle,
+        onOpenHistory = onOpenHistory,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -279,6 +325,8 @@ private fun ErrorStateScreen(
     message: String,
     onStartScan: () -> Unit,
     onShowIdle: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val subtitle = if (message.isBlank() || message.length > 130) {
         "Comprueba tu conexión e inténtalo de nuevo."
@@ -299,6 +347,8 @@ private fun ErrorStateScreen(
         onPrimaryClick = onStartScan,
         secondaryText = "Volver al inicio",
         onSecondaryClick = onShowIdle,
+        onOpenHistory = onOpenHistory,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -307,11 +357,15 @@ private fun AnalysisResultStateScreen(
     result: ScanUiState.AnalysisResult,
     onShowIdle: () -> Unit,
     onOpenLink: (String) -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     AnalysisResultScreen(
         result = result,
         onShowIdle = onShowIdle,
         onOpenLink = onOpenLink,
+        onOpenHistory = onOpenHistory,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -320,10 +374,15 @@ private fun AnalysisResultScreen(
     result: ScanUiState.AnalysisResult,
     onShowIdle: () -> Unit,
     onOpenLink: (String) -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val uiModel = buildAnalysisResultUiModel(result)
     val domain = extractDisplayDomain(result.analyzedUrl)
-    val openLinkPolicy = buildOpenLinkPolicy(result)
+    val openLinkPolicy = resolveOpenLinkPolicy(
+        riskLevel = result.riskLevel,
+        analysisStatus = result.analysisStatus,
+    )
     var showOpenLinkConfirmation by rememberSaveable { mutableStateOf(false) }
 
     val requestOpenLink = {
@@ -336,7 +395,13 @@ private fun AnalysisResultScreen(
 
     Scaffold(
         containerColor = QrBackground,
-        bottomBar = { VisualBottomBar(selected = BottomBarItem.Scan) },
+        bottomBar = {
+            VisualBottomBar(
+                selected = BottomBarItem.Scan,
+                onHistoryClick = onOpenHistory,
+                onSettingsClick = onOpenSettings,
+            )
+        },
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -440,10 +505,18 @@ private fun InfoStateLayout(
     onPrimaryClick: () -> Unit,
     secondaryText: String,
     onSecondaryClick: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     Scaffold(
         containerColor = QrBackground,
-        bottomBar = { VisualBottomBar(selected = BottomBarItem.Scan) },
+        bottomBar = {
+            VisualBottomBar(
+                selected = BottomBarItem.Scan,
+                onHistoryClick = onOpenHistory,
+                onSettingsClick = onOpenSettings,
+            )
+        },
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -962,12 +1035,6 @@ private fun OpenLinkConfirmationDialog(
     )
 }
 
-private enum class OpenLinkPolicy {
-    SafeDirectOpen,
-    ConfirmRiskyOpen,
-    ConfirmDangerousOpen,
-}
-
 private data class AnalysisResultUiModel(
     val title: String,
     val description: String,
@@ -1018,19 +1085,6 @@ private fun pickResultDescription(summary: String, fallback: String): String {
     return cleanSummary
 }
 
-private fun buildOpenLinkPolicy(result: ScanUiState.AnalysisResult): OpenLinkPolicy {
-    val isClearlySafe = result.riskLevel == RiskLevel.SAFE &&
-        result.analysisStatus == AnalysisStatus.COMPLETE
-    if (isClearlySafe) return OpenLinkPolicy.SafeDirectOpen
-
-    // Si el proveedor marca peligroso, mostramos confirmacion mas fuerte.
-    return if (result.riskLevel == RiskLevel.DANGEROUS) {
-        OpenLinkPolicy.ConfirmDangerousOpen
-    } else {
-        OpenLinkPolicy.ConfirmRiskyOpen
-    }
-}
-
 // Solo para mostrar el dominio al usuario en la UI.
 // No usar esta función como validación de seguridad.
 private fun extractDisplayDomain(url: String?): String {
@@ -1054,7 +1108,12 @@ private enum class BottomBarItem {
 
 // Barra inferior solo visual en esta fase; sin navegación funcional todavía.
 @Composable
-private fun VisualBottomBar(selected: BottomBarItem) {
+private fun VisualBottomBar(
+    selected: BottomBarItem,
+    onScanClick: () -> Unit = {},
+    onHistoryClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1069,18 +1128,21 @@ private fun VisualBottomBar(selected: BottomBarItem) {
             label = "ESCANEAR",
             icon = Icons.Outlined.QrCode2,
             selected = selected == BottomBarItem.Scan,
+            onClick = onScanClick,
         )
         BottomBarVisualItem(
             modifier = Modifier.weight(1f),
             label = "HISTORIAL",
             icon = Icons.Outlined.History,
             selected = selected == BottomBarItem.History,
+            onClick = onHistoryClick,
         )
         BottomBarVisualItem(
             modifier = Modifier.weight(1f),
             label = "AJUSTES",
             icon = Icons.Outlined.Settings,
             selected = selected == BottomBarItem.Settings,
+            onClick = onSettingsClick,
         )
     }
 }
@@ -1091,6 +1153,7 @@ private fun BottomBarVisualItem(
     label: String,
     icon: ImageVector,
     selected: Boolean,
+    onClick: () -> Unit,
 ) {
     val background = if (selected) QrBottomBarSelected else Color.Transparent
     val tint = if (selected) QrGreenDark else QrTextSecondary
@@ -1099,6 +1162,8 @@ private fun BottomBarVisualItem(
         modifier = modifier
             .clip(RoundedCornerShape(24.dp))
             .background(background)
+            .semantics { role = Role.Button }
+            .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -1128,6 +1193,8 @@ private fun HomePreview() {
             onShowIdle = {},
             onRetryAnalysis = {},
             onOpenLink = {},
+            onOpenHistory = {},
+            onOpenSettings = {},
         )
     }
 }
@@ -1142,6 +1209,8 @@ private fun LoadingPreview() {
             onShowIdle = {},
             onRetryAnalysis = {},
             onOpenLink = {},
+            onOpenHistory = {},
+            onOpenSettings = {},
         )
     }
 }
@@ -1156,6 +1225,8 @@ private fun NotWebPreview() {
             onShowIdle = {},
             onRetryAnalysis = {},
             onOpenLink = {},
+            onOpenHistory = {},
+            onOpenSettings = {},
         )
     }
 }
@@ -1170,6 +1241,8 @@ private fun ErrorPreview() {
             onShowIdle = {},
             onRetryAnalysis = {},
             onOpenLink = {},
+            onOpenHistory = {},
+            onOpenSettings = {},
         )
     }
 }

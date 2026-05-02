@@ -4,6 +4,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.carolina.analizadorseguridadqr.data.repository.ScanHistoryRepository
 import com.carolina.analizadorseguridadqr.network.AnalysisService
 import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
 import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
@@ -18,6 +19,7 @@ import java.util.Locale
 
 // ViewModel: concentra el estado de pantalla para que la Activity quede limpia.
 class MainViewModel(
+    private val historyRepository: ScanHistoryRepository,
     private val analysisService: AnalysisService = AnalysisService(),
 ) : ViewModel() {
     companion object {
@@ -121,16 +123,29 @@ class MainViewModel(
 
             try {
                 val response = analysisService.analyzeUrl(url)
+                val riskLevel = mapRiskLevel(response.riskLevel)
+                val analysisStatus = mapAnalysisStatus(response.analysisStatus)
+
                 _uiState.value = ScanUiState.AnalysisResult(
-                    riskLevel = mapRiskLevel(response.riskLevel),
-                    analysisStatus = mapAnalysisStatus(response.analysisStatus),
+                    riskLevel = riskLevel,
+                    analysisStatus = analysisStatus,
                     summary = response.summary,
                     reasons = response.reasons,
                     analyzedUrl = url,
                 )
+
+                // Guardado secundario:
+                // primero actualizamos la UI para no alargar Loading en móviles lentos.
+                historyRepository.saveAnalysisResult(
+                    url = url,
+                    riskLevel = riskLevel,
+                    analysisStatus = analysisStatus,
+                    summary = response.summary,
+                    reasons = response.reasons,
+                )
             } catch (exception: IOException) {
                 // Error controlado de red: warning para diagnóstico sin marcar fallo crítico.
-                Log.w(TAG, "Error de conexión con backend: ${exception.message}", exception)
+                Log.w(TAG, "Error de conexión con backend", exception)
                 _uiState.value = ScanUiState.Error(
                     "No se pudo conectar con el servicio de análisis.",
                 )
@@ -142,7 +157,7 @@ class MainViewModel(
                 )
             } catch (exception: Exception) {
                 // Error no previsto: se registra como error para facilitar investigación.
-                Log.e(TAG, "Error inesperado al analizar URL: ${exception.message}", exception)
+                Log.e(TAG, "Error inesperado al analizar URL", exception)
                 _uiState.value = ScanUiState.Error(
                     "No se pudo completar el análisis. Inténtalo de nuevo.",
                 )
@@ -176,3 +191,5 @@ class MainViewModel(
         }
     }
 }
+
+
