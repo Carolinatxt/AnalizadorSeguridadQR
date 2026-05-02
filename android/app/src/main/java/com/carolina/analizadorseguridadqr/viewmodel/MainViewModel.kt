@@ -9,6 +9,7 @@ import com.carolina.analizadorseguridadqr.network.AnalysisService
 import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
 import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +25,7 @@ class MainViewModel(
 ) : ViewModel() {
     companion object {
         private const val TAG = "MainViewModel"
+        private const val MAX_LOG_VALUE_LENGTH = 40
     }
 
     // Mutable interno: solo el ViewModel puede cambiar el estado.
@@ -136,6 +138,9 @@ class MainViewModel(
 
                 // Guardado secundario:
                 // primero actualizamos la UI para no alargar Loading en móviles lentos.
+                // Dejamos libre el candado de análisis antes de persistir, para evitar
+                // bloquear acciones del usuario si Room tarda en dispositivos lentos.
+                isAnalyzing = false
                 historyRepository.saveAnalysisResult(
                     url = url,
                     riskLevel = riskLevel,
@@ -143,6 +148,8 @@ class MainViewModel(
                     summary = response.summary,
                     reasons = response.reasons,
                 )
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (exception: IOException) {
                 // Error controlado de red: warning para diagnóstico sin marcar fallo crítico.
                 Log.w(TAG, "Error de conexión con backend", exception)
@@ -173,7 +180,7 @@ class MainViewModel(
             "suspicious" -> RiskLevel.SUSPICIOUS
             "dangerous" -> RiskLevel.DANGEROUS
             else -> {
-                Log.w(TAG, "riskLevel desconocido del backend: '$value'")
+                Log.w(TAG, "riskLevel desconocido del backend: '${safeLogValue(value)}'")
                 RiskLevel.UNKNOWN
             }
         }
@@ -185,11 +192,23 @@ class MainViewModel(
             "partial" -> AnalysisStatus.PARTIAL
             "unavailable" -> AnalysisStatus.UNAVAILABLE
             else -> {
-                Log.w(TAG, "analysisStatus desconocido del backend: '$value'")
+                Log.w(TAG, "analysisStatus desconocido del backend: '${safeLogValue(value)}'")
                 AnalysisStatus.UNKNOWN
             }
         }
     }
+
+    private fun safeLogValue(value: String): String {
+        return value
+            .replace('\n', ' ')
+            .replace('\r', ' ')
+            .replace('\t', ' ')
+            .trim()
+            .take(MAX_LOG_VALUE_LENGTH)
+    }
 }
+
+
+
 
 

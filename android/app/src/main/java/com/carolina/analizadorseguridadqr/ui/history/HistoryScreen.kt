@@ -24,7 +24,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.QrCode2
@@ -78,6 +77,7 @@ fun HistoryScreen(
     onSettingsTabClick: () -> Unit,
 ) {
     val filteredItems = historyItems.filterBy(selectedFilter)
+    val hasHistory = historyItems.isNotEmpty()
 
     Scaffold(
         containerColor = QrBackground,
@@ -96,6 +96,7 @@ fun HistoryScreen(
         ) {
             HistoryTopBar(
                 onBackClick = onBackClick,
+                hasHistory = hasHistory,
                 onClearHistoryClick = onClearHistoryClick,
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -155,6 +156,7 @@ fun HistoryScreen(
 @Composable
 private fun HistoryTopBar(
     onBackClick: () -> Unit,
+    hasHistory: Boolean,
     onClearHistoryClick: () -> Unit,
 ) {
     Row(
@@ -178,16 +180,9 @@ private fun HistoryTopBar(
             modifier = Modifier.weight(1f),
         )
         IconButton(
-            onClick = {},
-            enabled = false,
+            onClick = onClearHistoryClick,
+            enabled = hasHistory,
         ) {
-            Icon(
-                imageVector = Icons.Outlined.FilterList,
-                contentDescription = "Filtrar historial",
-                tint = QrTextSecondary,
-            )
-        }
-        IconButton(onClick = onClearHistoryClick) {
             Icon(
                 imageVector = Icons.Outlined.Delete,
                 contentDescription = "Borrar historial",
@@ -208,7 +203,7 @@ private fun FilterRow(
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        HistoryFilter.values().forEach { filter ->
+        HistoryFilter.entries.forEach { filter ->
             FilterChip(
                 selected = filter == selectedFilter,
                 onClick = { onFilterSelected(filter) },

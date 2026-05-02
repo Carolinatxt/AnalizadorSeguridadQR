@@ -2,6 +2,7 @@ package com.carolina.analizadorseguridadqr.ui.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -33,12 +34,12 @@ fun HistoryDetailDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Detalle del análisis",
+                text = "Detalle del analisis",
                 color = MaterialTheme.colorScheme.onSurface,
             )
         },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 DetailLabel("Dominio")
                 DetailValue(item.displayDomain)
                 Spacer(modifier = Modifier.height(10.dp))
@@ -67,12 +68,15 @@ fun HistoryDetailDialog(
                 DetailValue(riskLevelLabel(item.riskLevel))
                 Spacer(modifier = Modifier.height(10.dp))
 
-                DetailLabel("Estado del análisis")
+                DetailLabel("Estado del analisis")
                 DetailValue(analysisStatusLabel(item.analysisStatus))
                 Spacer(modifier = Modifier.height(10.dp))
 
                 DetailLabel("Resumen")
-                DetailValue(item.summary)
+                DetailValue(
+                    text = item.summary,
+                    maxLines = 8,
+                )
                 Spacer(modifier = Modifier.height(10.dp))
 
                 DetailLabel("Motivos")
@@ -81,7 +85,7 @@ fun HistoryDetailDialog(
                 } else {
                     item.reasons.forEach { reason ->
                         Text(
-                            text = "• $reason",
+                            text = "- $reason",
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
@@ -111,23 +115,35 @@ fun HistoryOpenLinkConfirmationDialog(
     onConfirm: () -> Unit,
 ) {
     val isDangerous = openLinkPolicy == OpenLinkPolicy.ConfirmDangerousOpen
+    val isSafeSnapshot = openLinkPolicy == OpenLinkPolicy.SafeDirectOpen
     val isAnalysisIncompleteOrUncertain = analysisStatus == AnalysisStatus.PARTIAL ||
         analysisStatus == AnalysisStatus.UNAVAILABLE ||
         analysisStatus == AnalysisStatus.UNKNOWN
-    val title = if (isDangerous) "Enlace peligroso" else "Antes de continuar"
+    val title = when {
+        isDangerous -> "Enlace peligroso"
+        isSafeSnapshot -> "Confirmar apertura"
+        else -> "Antes de continuar"
+    }
     val message = if (isDangerous) {
         "Este enlace ha sido relacionado con una amenaza grave. Abrirlo puede ponerte en riesgo. " +
-            "Si continúas, se abrirá fuera de la app en el navegador del dispositivo."
+            "Si continuas, se abrira fuera de la app en el navegador del dispositivo."
+    } else if (isSafeSnapshot) {
+        "Este resultado de seguridad corresponde a un momento anterior y puede haber cambiado. " +
+            "Si continuas, se abrira fuera de la app en el navegador del dispositivo."
     } else {
         if (isAnalysisIncompleteOrUncertain) {
-            "Este enlace no se ha clasificado como seguro o el análisis no pudo completarse del todo. " +
-                "Si continúas, se abrirá fuera de la app en el navegador del dispositivo."
+            "Este enlace no se ha clasificado como seguro o el analisis no pudo completarse del todo. " +
+                "Si continuas, se abrira fuera de la app en el navegador del dispositivo."
         } else {
             "Este enlace no se ha clasificado como seguro. " +
-                "Si continúas, se abrirá fuera de la app en el navegador del dispositivo."
+                "Si continuas, se abrira fuera de la app en el navegador del dispositivo."
         }
     }
-    val confirmText = if (isDangerous) "Entiendo el riesgo" else "Abrir de todas formas"
+    val confirmText = when {
+        isDangerous -> "Entiendo el riesgo"
+        isSafeSnapshot -> "Abrir enlace"
+        else -> "Abrir de todas formas"
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -156,10 +172,15 @@ private fun DetailLabel(text: String) {
 }
 
 @Composable
-private fun DetailValue(text: String) {
+private fun DetailValue(
+    text: String,
+    maxLines: Int = 4,
+) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
     )
 }
 

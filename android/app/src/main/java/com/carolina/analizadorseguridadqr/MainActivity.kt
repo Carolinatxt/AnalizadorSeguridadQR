@@ -21,13 +21,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.carolina.analizadorseguridadqr.data.local.history.AppDatabase
 import com.carolina.analizadorseguridadqr.data.repository.ScanHistoryRepository
 import com.carolina.analizadorseguridadqr.ui.history.HistoryFilter
@@ -100,16 +100,23 @@ class MainActivity : ComponentActivity() {
         setContent {
             AnalizadorSeguridadQRTheme {
                 // Convertimos StateFlow en estado observable por Compose.
-                val uiState by viewModel.uiState.collectAsState()
-                val historyItems by historyViewModel.historyItems.collectAsState()
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                val historyItems by historyViewModel.historyItems.collectAsStateWithLifecycle()
                 var selectedTab by rememberSaveable { mutableStateOf(AppTab.SCAN) }
                 var selectedHistoryFilter by rememberSaveable { mutableStateOf(HistoryFilter.ALL) }
                 var selectedHistoryItem by remember { mutableStateOf<HistoryUiItem?>(null) }
                 var showClearHistoryDialog by rememberSaveable { mutableStateOf(false) }
                 var showHistoryOpenLinkConfirmation by rememberSaveable { mutableStateOf(false) }
 
+                fun switchTab(tab: AppTab) {
+                    selectedTab = tab
+                    showClearHistoryDialog = false
+                    showHistoryOpenLinkConfirmation = false
+                    selectedHistoryItem = null
+                }
+
                 BackHandler(enabled = selectedTab != AppTab.SCAN) {
-                    selectedTab = AppTab.SCAN
+                    switchTab(AppTab.SCAN)
                 }
 
                 when (selectedTab) {
@@ -119,24 +126,24 @@ class MainActivity : ComponentActivity() {
                         onShowIdle = viewModel::showIdle,
                         onRetryAnalysis = viewModel::retryLastAnalysis,
                         onOpenLink = ::openUrlInExternalBrowser,
-                        onOpenHistory = { selectedTab = AppTab.HISTORY },
-                        onOpenSettings = { selectedTab = AppTab.SETTINGS },
+                        onOpenHistory = { switchTab(AppTab.HISTORY) },
+                        onOpenSettings = { switchTab(AppTab.SETTINGS) },
                     )
 
                     AppTab.HISTORY -> HistoryScreen(
                         historyItems = historyItems,
                         selectedFilter = selectedHistoryFilter,
                         onFilterSelected = { selectedHistoryFilter = it },
-                        onBackClick = { selectedTab = AppTab.SCAN },
+                        onBackClick = { switchTab(AppTab.SCAN) },
                         onClearHistoryClick = { showClearHistoryDialog = true },
                         onItemClick = { selectedHistoryItem = it },
-                        onScanTabClick = { selectedTab = AppTab.SCAN },
-                        onSettingsTabClick = { selectedTab = AppTab.SETTINGS },
+                        onScanTabClick = { switchTab(AppTab.SCAN) },
+                        onSettingsTabClick = { switchTab(AppTab.SETTINGS) },
                     )
 
                     AppTab.SETTINGS -> SettingsPlaceholderScreen(
-                        onScanTabClick = { selectedTab = AppTab.SCAN },
-                        onHistoryTabClick = { selectedTab = AppTab.HISTORY },
+                        onScanTabClick = { switchTab(AppTab.SCAN) },
+                        onHistoryTabClick = { switchTab(AppTab.HISTORY) },
                         onSettingsTabClick = {},
                     )
                 }
@@ -171,16 +178,9 @@ class MainActivity : ComponentActivity() {
                         item = historyItem,
                         onDismiss = { selectedHistoryItem = null },
                         onRequestOpenLink = {
-                            val openLinkPolicy = resolveOpenLinkPolicy(
-                                riskLevel = historyItem.riskLevel,
-                                analysisStatus = historyItem.analysisStatus,
-                            )
-                            if (openLinkPolicy == OpenLinkPolicy.SafeDirectOpen) {
-                                selectedHistoryItem = null
-                                openUrlInExternalBrowser(historyItem.url)
-                            } else {
-                                showHistoryOpenLinkConfirmation = true
-                            }
+                            // Historial: confirmamos siempre la apertura, incluso si el
+                            // análisis fue SAFE+COMPLETE, porque es un snapshot temporal.
+                            showHistoryOpenLinkConfirmation = true
                         },
                     )
                 }

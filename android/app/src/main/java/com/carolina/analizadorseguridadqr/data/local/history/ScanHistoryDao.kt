@@ -3,6 +3,7 @@ package com.carolina.analizadorseguridadqr.data.local.history
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -18,6 +19,15 @@ interface ScanHistoryDao {
 
     @Insert
     suspend fun insert(scan: ScanHistoryEntity)
+
+    @Transaction
+    suspend fun insertAndKeepOnlyLast(
+        scan: ScanHistoryEntity,
+        maxRows: Int,
+    ) {
+        insert(scan)
+        keepOnlyLast(maxRows)
+    }
 
     @Query("DELETE FROM scan_history")
     suspend fun clearAll()
