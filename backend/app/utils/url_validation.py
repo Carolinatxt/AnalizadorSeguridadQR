@@ -38,6 +38,11 @@ def validate_public_web_url(value: str) -> str:
     except ValueError as exc:
         raise ValueError("La URL debe tener un host valido") from exc
 
+    try:
+        parsed.port
+    except ValueError as exc:
+        raise ValueError("La URL debe tener un puerto valido") from exc
+
     if not hostname:
         raise ValueError("La URL debe tener un host valido")
 

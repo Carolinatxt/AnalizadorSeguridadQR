@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +45,7 @@ import coil3.ImageLoader
 import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.SubcomposeAsyncImageContent
 import com.carolina.analizadorseguridadqr.network.ScreenshotService
+import com.carolina.analizadorseguridadqr.security.isSupportedWebUrl
 import com.carolina.analizadorseguridadqr.ui.security.ScreenshotPreviewPolicy
 import com.carolina.analizadorseguridadqr.ui.security.resolveScreenshotPreviewPolicy
 import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
@@ -69,7 +71,7 @@ sealed class ScreenshotUiState {
 private const val SCREENSHOT_BLOCKED_MESSAGE =
     "No se genera vista previa de este enlace por seguridad."
 private const val SCREENSHOT_UNAVAILABLE_MESSAGE =
-    "La vista previa no esta disponible en este momento."
+    "La vista previa no está disponible en este momento."
 private const val SCREENSHOT_RENDER_ERROR_MESSAGE =
     "No se pudo mostrar la vista previa."
 
@@ -85,7 +87,8 @@ fun ScreenshotPreviewCard(
 
     val scope = rememberCoroutineScope()
     val imageLoader = rememberSecureScreenshotImageLoader()
-    val effectiveScreenshotService = screenshotService ?: remember { ScreenshotService() }
+    val rememberedScreenshotService = remember { ScreenshotService() }
+    val effectiveScreenshotService = screenshotService ?: rememberedScreenshotService
 
     var screenshotUiState by remember(analyzedUrl) {
         mutableStateOf<ScreenshotUiState>(ScreenshotUiState.Idle)
@@ -108,7 +111,7 @@ fun ScreenshotPreviewCard(
                     }
 
                     response.available -> {
-                        ScreenshotUiState.Error("La vista previa no esta disponible.")
+                        ScreenshotUiState.Error("La vista previa no está disponible.")
                     }
 
                     else -> {
@@ -125,6 +128,11 @@ fun ScreenshotPreviewCard(
     }
 
     fun handleScreenshotRequest(hasUserConfirmed: Boolean = false) {
+        if (!isSupportedWebUrl(analyzedUrl)) {
+            screenshotUiState = ScreenshotUiState.Error(SCREENSHOT_UNAVAILABLE_MESSAGE)
+            return
+        }
+
         when (resolveScreenshotPreviewPolicy(riskLevel, analysisStatus)) {
             ScreenshotPreviewPolicy.AllowDirect -> requestScreenshotFromBackend()
             ScreenshotPreviewPolicy.RequireConfirmation -> {
@@ -187,7 +195,7 @@ fun ScreenshotPreviewCard(
             when (val state = screenshotUiState) {
                 ScreenshotUiState.Idle -> {
                     Text(
-                        text = "Si lo necesitas, puedes generar una captura visual de la pagina analizada. Una pagina fraudulenta puede parecer legitima.",
+                        text = "Si lo necesitas, puedes generar una captura visual de la página analizada. Una página fraudulenta puede parecer legítima.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = QrTextSecondary,
                     )
@@ -229,7 +237,7 @@ fun ScreenshotPreviewCard(
                     ScreenshotPreviewImage(
                         imageUrl = state.imageUrl,
                         imageLoader = imageLoader,
-                        contentDescription = "Vista previa de la pagina analizada",
+                        contentDescription = "Vista previa de la página analizada",
                         contentScale = ContentScale.FillWidth,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -244,8 +252,8 @@ fun ScreenshotPreviewCard(
                     ScreenshotWarningBlock(
                         backgroundColor = QrDangerSoft,
                         accentColor = QrDanger,
-                        title = "Vista previa orientativa. Una pagina fraudulenta puede parecer legitima. Esta imagen no garantiza que el sitio sea seguro.",
-                        message = "La vista previa puede no reflejar el estado actual de la pagina y puede no estar disponible en algunos sitios.",
+                        title = "Vista previa orientativa. Una página fraudulenta puede parecer legítima. Esta imagen no garantiza que el sitio sea seguro.",
+                        message = "La vista previa puede no reflejar el estado actual de la página y puede no estar disponible en algunos sitios.",
                     )
                 }
 
@@ -254,7 +262,7 @@ fun ScreenshotPreviewCard(
                         backgroundColor = QrSuspiciousSoft,
                         accentColor = QrSuspicious,
                         title = state.message,
-                        message = "La vista previa no forma parte de la decision principal de seguridad.",
+                        message = "La vista previa no forma parte de la decisión principal de seguridad.",
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     ScreenshotActionButton(
@@ -316,7 +324,9 @@ private fun ScreenshotPreviewImage(
             SubcomposeAsyncImageContent()
         },
         error = {
-            onError()
+            LaunchedEffect(imageUrl) {
+                onError()
+            }
         },
     )
 }
@@ -370,13 +380,27 @@ private fun ScreenshotFullScreenDialog(
             ScreenshotPreviewImage(
                 imageUrl = imageUrl,
                 imageLoader = imageLoader,
-                contentDescription = "Vista previa ampliada de la pagina analizada",
+                contentDescription = "Vista previa ampliada de la página analizada",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp),
                 onError = onError,
             )
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.65f))
+                    .padding(horizontal = 12.dp, vertical = 14.dp),
+            ) {
+                Text(
+                    text = "Vista previa orientativa. Puede no reflejar el estado actual de la página.",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
 
             IconButton(
                 onClick = onDismiss,
@@ -398,9 +422,11 @@ private fun ScreenshotFullScreenDialog(
 private fun ScreenshotActionButton(
     text: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp),
@@ -466,7 +492,7 @@ private fun ScreenshotConfirmationDialog(
         },
         text = {
             Text(
-                text = "Esta URL tiene senales de riesgo o no ha podido analizarse completamente.\n\nTen en cuenta que una pagina fraudulenta puede parecer legitima visualmente. La vista previa no garantiza que el sitio sea seguro.\n\nPara generar la vista previa, la URL se enviara a SnapRender, un proveedor externo de capturas web.\n\nQuieres continuar?",
+                text = "Esta URL tiene señales de riesgo o no ha podido analizarse completamente.\n\nTen en cuenta que una página fraudulenta puede parecer legítima visualmente. La vista previa no garantiza que el sitio sea seguro.\n\nPara generar la vista previa, la URL se enviará a SnapRender, un proveedor externo de capturas web.\n\n¿Quieres continuar?",
                 color = QrTextSecondary,
             )
         },

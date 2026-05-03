@@ -122,6 +122,14 @@ def _extract_signed_url(data: object) -> str | None:
     return normalized or None
 
 
+def _safe_response_json(response: httpx.Response) -> dict[str, object]:
+    try:
+        data = response.json()
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _is_valid_snaprender_signed_url(signed_url: str) -> bool:
     parsed = urlparse(signed_url)
     return (
@@ -213,19 +221,7 @@ async def create_screenshot_preview(
             image_url=None,
         )
 
-    try:
-        data = response.json()
-    except ValueError:
-        return _finish_result(
-            log_level=logging.ERROR,
-            request_id=request_id,
-            provider_status="parse_error",
-            host=host,
-            start_time=start_time,
-            message=_GENERIC_USER_MESSAGE,
-            available=False,
-            image_url=None,
-        )
+    data = _safe_response_json(response)
 
     if response.status_code == 401:
         return _finish_result(
@@ -283,6 +279,18 @@ async def create_screenshot_preview(
             log_level=logging.WARNING,
             request_id=request_id,
             provider_status="provider_error",
+            host=host,
+            start_time=start_time,
+            message=_GENERIC_USER_MESSAGE,
+            available=False,
+            image_url=None,
+        )
+
+    if not data:
+        return _finish_result(
+            log_level=logging.ERROR,
+            request_id=request_id,
+            provider_status="parse_error",
             host=host,
             start_time=start_time,
             message=_GENERIC_USER_MESSAGE,

@@ -8,6 +8,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
+import java.util.concurrent.TimeUnit
 
 private const val ALLOWED_SCREENSHOT_IMAGE_HOST = "app.snap-render.com"
 
@@ -31,6 +32,9 @@ private class ScreenshotHostAllowlistInterceptor : Interceptor {
 
 private fun createSecureScreenshotOkHttpClient(): OkHttpClient {
     return OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
         .addInterceptor(ScreenshotHostAllowlistInterceptor())
         .build()
 }
