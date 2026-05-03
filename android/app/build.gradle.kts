@@ -64,6 +64,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     // Necesario para iconos Outlined usados en la UI (prototipo).
     implementation("androidx.compose.material:material-icons-extended")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")

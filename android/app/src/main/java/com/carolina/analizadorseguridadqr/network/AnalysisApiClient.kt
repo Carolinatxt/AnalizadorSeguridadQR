@@ -14,7 +14,9 @@ object AnalysisApiClient {
             .build()
     }
 
-    private val retrofit: Retrofit by lazy {
+    // Exponemos la instancia compartida para reutilizar la misma configuracion
+    // de red en APIs futuras sin duplicar baseUrl, cliente o Gson.
+    val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BackendConfig.BASE_URL)
             .client(okHttpClient)

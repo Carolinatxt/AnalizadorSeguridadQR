@@ -78,6 +78,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.carolina.analizadorseguridadqr.ui.components.ScreenshotPreviewCard
 import com.carolina.analizadorseguridadqr.ui.security.OpenLinkPolicy
 import com.carolina.analizadorseguridadqr.ui.security.resolveOpenLinkPolicy
 import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
@@ -640,6 +641,16 @@ private fun AnalysisResultScreen(
                     accentColor = uiModel.accentColor,
                     accentSoftColor = uiModel.softColor,
                 )
+                result.analyzedUrl
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { analyzedUrl ->
+                        Spacer(modifier = Modifier.height(22.dp))
+                        ScreenshotPreviewCard(
+                            analyzedUrl = analyzedUrl,
+                            riskLevel = result.riskLevel,
+                            analysisStatus = result.analysisStatus,
+                        )
+                    }
                 Spacer(modifier = Modifier.height(24.dp))
             }
 

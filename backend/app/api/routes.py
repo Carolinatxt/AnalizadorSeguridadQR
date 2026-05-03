@@ -6,11 +6,14 @@ from fastapi import APIRouter, Request
 
 from app.core.config import RATE_LIMIT_ANALYZE
 from app.core.rate_limiter import limiter
+from app.models.screenshot_schemas import ScreenshotRequest, ScreenshotResponse
 from app.models.schemas import AnalyzeUrlRequest, AnalyzeUrlResponse
 from app.services.analysis_service import analyze_url_with_providers
+from app.services.screenshot_service import create_screenshot_preview
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+RATE_LIMIT_SCREENSHOT = "5/minute"
 
 
 @router.post("/api/v1/analyze", response_model=AnalyzeUrlResponse)
@@ -80,3 +83,44 @@ async def analyze_url(request: Request, payload: AnalyzeUrlRequest) -> AnalyzeUr
     )
 
     return outcome.response
+
+
+@router.post("/api/v1/screenshot", response_model=ScreenshotResponse)
+@limiter.limit(RATE_LIMIT_SCREENSHOT)
+async def create_screenshot(
+    request: Request,
+    payload: ScreenshotRequest,
+) -> ScreenshotResponse:
+    request_id = getattr(request.state, "request_id", None)
+
+    url = payload.url
+    logger.info(
+        "Nueva peticion de vista previa recibida en /api/v1/screenshot | request_id=%s",
+        request_id,
+    )
+
+    parsed = urlparse(url)
+    logger.info(
+        "URL valida para vista previa | request_id=%s | scheme=%s | host=%s",
+        request_id,
+        parsed.scheme,
+        parsed.hostname,
+    )
+
+    start_time = time.perf_counter()
+    result = await create_screenshot_preview(url, request_id=request_id)
+    duration_ms = int((time.perf_counter() - start_time) * 1000)
+
+    logger.info(
+        "Respuesta de vista previa | request_id=%s | available=%s | provider_status=%s | duration_ms=%s",
+        request_id,
+        result.available,
+        result.provider_status,
+        duration_ms,
+    )
+
+    return ScreenshotResponse(
+        available=result.available,
+        image_url=result.image_url,
+        message=result.message,
+    )

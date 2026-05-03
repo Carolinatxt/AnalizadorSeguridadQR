@@ -63,36 +63,43 @@ fun PrivacySettingsScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Explicamos de forma clara qué ocurre durante cada análisis y qué datos permanecen en tu dispositivo.",
+                text = "Explicamos de forma clara que ocurre durante cada analisis y que datos permanecen en tu dispositivo.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = QrTextSecondary,
             )
             Spacer(modifier = Modifier.height(24.dp))
 
             SettingsInfoCard(
-                title = "Durante el análisis",
-                body = "Durante el análisis, las URLs escaneadas se envían al servidor de análisis de la aplicación y a proveedores externos de seguridad, como Google Web Risk e IPQualityScore, para comprobar si existen amenazas conocidas.",
+                title = "Durante el analisis",
+                body = "Durante el analisis, las URLs escaneadas se envian al servidor de analisis de la aplicacion y a proveedores externos de seguridad, como Google Web Risk e IPQualityScore, para comprobar si existen amenazas conocidas.",
                 icon = Icons.Outlined.Security,
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             SettingsInfoCard(
                 title = "Proveedores externos",
-                body = "Los proveedores externos pueden registrar o tratar las URLs analizadas según sus propias políticas de privacidad.",
+                body = "Los proveedores externos pueden registrar o tratar las URLs analizadas segun sus propias politicas de privacidad.",
                 icon = Icons.Outlined.Language,
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             SettingsInfoCard(
                 title = "Almacenamiento local",
-                body = "El historial de resultados se guarda únicamente en este dispositivo. No se sincroniza en la nube ni se almacena como historial en el servidor de la aplicación.",
+                body = "El historial de resultados se guarda unicamente en este dispositivo. No se sincroniza en la nube ni se almacena como historial en el servidor de la aplicacion.",
                 icon = Icons.Outlined.CloudOff,
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             SettingsInfoCard(
-                title = "Prototipo académico",
-                body = "Esta aplicación es un prototipo académico. No solicita datos personales de forma intencionada ni sincroniza el historial con servidores externos. Los proveedores externos pueden tratar las URLs analizadas según sus propias políticas.",
+                title = "Vista previa avanzada",
+                body = "Si solicitas una vista previa visual, la URL analizada se enviara a SnapRender, un proveedor externo de capturas web, para generar una imagen de la pagina.\n\nPara mostrar la captura, la app carga una URL firmada generada por SnapRender. Esto implica que SnapRender puede recibir la URL tanto al generar la firma desde el backend como al renderizar la imagen solicitada desde el dispositivo.\n\nEsta funcion es opcional, solo se ejecuta cuando pulsas explicitamente 'Generar vista previa' y no forma parte de la decision principal de seguridad. La captura no se guarda en el historial local.\n\nPara reducir el consumo de cuota gratuita, SnapRender puede devolver una captura cacheada durante hasta 24 horas, por lo que la imagen puede no reflejar el estado actual exacto de la pagina.",
+                icon = Icons.Outlined.Language,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SettingsInfoCard(
+                title = "Prototipo academico",
+                body = "Esta aplicacion es un prototipo academico. No solicita datos personales de forma intencionada ni sincroniza el historial con servidores externos. Los proveedores externos pueden tratar las URLs analizadas segun sus propias politicas.",
                 icon = Icons.Outlined.Info,
             )
             Spacer(modifier = Modifier.height(18.dp))

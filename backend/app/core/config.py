@@ -42,6 +42,7 @@ WEBRISK_API_KEY: str | None = _clean_env_value(
     os.getenv("WEBRISK_API_KEY") or os.getenv("GOOGLE_WEB_RISK_API_KEY")
 )
 IPQS_API_KEY: str | None = _clean_env_value(os.getenv("IPQS_API_KEY"))
+SNAPRENDER_API_KEY: str | None = _clean_env_value(os.getenv("SNAPRENDER_API_KEY"))
 
 # Politica de seguridad para /api/v1/analyze:
 # cada solicitud consume cuota de proveedores externos (Web Risk + IPQS)
@@ -52,4 +53,11 @@ RATE_LIMIT_ANALYZE: str = "30/minute"
 ANALYSIS_TOTAL_TIMEOUT_SECONDS: float = _get_positive_float_from_env(
     "ANALYSIS_TOTAL_TIMEOUT_SECONDS",
     default=12.0,
+)
+
+# Politica de seguridad para integraciones de captura remota.
+# Debe ser corto para evitar bloquear la app si el proveedor externo falla.
+SCREENSHOT_TIMEOUT_SECONDS: float = _get_positive_float_from_env(
+    "SCREENSHOT_TIMEOUT_SECONDS",
+    default=6.0,
 )
