@@ -11,6 +11,8 @@ import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
 import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,63 +36,80 @@ class MainViewModel(
 
     // Exponemos solo lectura para evitar cambios desde fuera.
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
-    // Guarda la última URL web válida para el botón "Reintentar".
+
+    // Guarda la ultima URL web valida para el boton "Reintentar".
     private var lastValidWebUrl: String? = null
+
     // Evita lanzar varias peticiones al backend por dobles toques del usuario.
     private var isAnalyzing: Boolean = false
 
-    // El usuario ha pulsado el botón de escanear.
-    // No cambiamos estado aquí porque Loading se usa solo al consultar el backend.
+    // Permite cancelar el analisis anterior cuando llega una URL mas reciente.
+    private var analysisJob: Job? = null
+
+    // El usuario ha pulsado el boton de escanear.
+    // No cambiamos estado aqui porque Loading se usa solo al consultar el backend.
     fun onScanButtonClicked() {
+        analysisJob?.cancel()
+        isAnalyzing = false
+
+        if (_uiState.value is ScanUiState.Loading ||
+            _uiState.value is ScanUiState.ReadyToAnalyze
+        ) {
+            _uiState.value = ScanUiState.Idle
+        }
     }
 
     fun showIdle() {
-        // Decisión de UX: volver al inicio reinicia todo el flujo y exige reescanear.
+        // Decision de UX: volver al inicio reinicia todo el flujo y exige reescanear.
+        analysisJob?.cancel()
+        isAnalyzing = false
         _uiState.value = ScanUiState.Idle
         lastValidWebUrl = null
     }
 
     fun showError(message: String) {
         // Permite mostrar errores de forma controlada en la UI.
+        analysisJob?.cancel()
+        isAnalyzing = false
         _uiState.value = ScanUiState.Error(message)
     }
 
-    // Recibe el texto bruto del QR y aplica una validación funcional mínima.
+    // Recibe el texto bruto del QR y lo envía al flujo comun de validacion y analisis.
     fun onScanResult(rawValue: String?) {
-        val content = rawValue?.trim()
-        if (content.isNullOrEmpty()) {
-            _uiState.value = ScanUiState.NotAWebUrl(
-                "No se detectó un enlace web válido en el código QR.",
-            )
-            return
-        }
-
-        if (!isValidWebUrl(content)) {
-            _uiState.value = ScanUiState.NotAWebUrl(
-                "El código QR no contiene un enlace web válido (http o https).",
-            )
-            return
-        }
-
-        // ReadyToAnalyze se mantiene como puente conceptual del flujo.
-        lastValidWebUrl = content
-        _uiState.value = ScanUiState.ReadyToAnalyze(content)
-        analyzeUrl(content)
+        handleUrlCandidate(
+            rawValue = rawValue,
+            invalidMessage = "Este QR no contiene una URL web válida.",
+        )
     }
 
-    // Reintenta el análisis de la última URL válida conocida.
-    fun retryLastAnalysis() {
-        // Si ya hay una petición activa, ignoramos el toque extra.
-        if (isAnalyzing) {
-            Log.w(TAG, "Reintento ignorado: ya hay un análisis en curso.")
-            return
+    fun onManualUrlSubmitted(input: String) {
+        handleUrlCandidate(
+            rawValue = input,
+            invalidMessage = "Introduce una URL que empiece por http:// o https://.",
+        )
+    }
+
+    fun onManualUrlChanged() {
+        analysisJob?.cancel()
+        isAnalyzing = false
+
+        if (_uiState.value !is ScanUiState.Idle &&
+            _uiState.value !is ScanUiState.ReadyToAnalyze
+        ) {
+            _uiState.value = ScanUiState.Idle
         }
+    }
+
+    // Reintenta el analisis de la ultima URL valida conocida.
+    fun retryLastAnalysis() {
+        analysisJob?.cancel()
+        isAnalyzing = false
 
         val url = lastValidWebUrl
         if (url.isNullOrBlank()) {
             Log.w(TAG, "No hay URL válida reciente para reintentar análisis.")
             _uiState.value = ScanUiState.Error(
-                "No hay un enlace válido reciente para reintentar. Escanea otro QR.",
+                "No hay un enlace válido reciente para reintentar. Escanea un QR o introduce una URL.",
             )
             return
         }
@@ -99,34 +118,59 @@ class MainViewModel(
     }
 
     fun analyzeUrlFromHistory(url: String) {
-        val trimmedUrl = url.trim()
-        if (!isValidWebUrl(trimmedUrl)) {
-            _uiState.value = ScanUiState.NotAWebUrl(
-                "El enlace guardado ya no tiene un formato web válido.",
-            )
+        Log.d(TAG, "Reanalisis solicitado desde historial")
+        handleUrlCandidate(
+            rawValue = url,
+            invalidMessage = "El enlace guardado ya no tiene un formato web válido.",
+        )
+    }
+
+    private fun handleUrlCandidate(
+        rawValue: String?,
+        invalidMessage: String,
+    ) {
+        analysisJob?.cancel()
+        isAnalyzing = false
+
+        val cleanedValue = rawValue?.trim().orEmpty()
+        if (cleanedValue.isBlank()) {
+            _uiState.value = ScanUiState.Idle
             return
         }
 
-        // Reutilizamos la misma URL validada para el flujo de reintento y análisis.
-        Log.d(TAG, "Reanálisis solicitado desde historial")
-        lastValidWebUrl = trimmedUrl
-        analyzeUrl(trimmedUrl)
+        val unsupportedReason = getUnsupportedWebUrlReason(cleanedValue)
+        if (unsupportedReason != null) {
+            logUnsupportedWebUrlReason(unsupportedReason)
+            _uiState.value = ScanUiState.NotAWebUrl(invalidMessage)
+            return
+        }
+
+        lastValidWebUrl = cleanedValue
+        _uiState.value = ScanUiState.ReadyToAnalyze(cleanedValue)
+        analyzeUrl(cleanedValue)
     }
 
     private fun analyzeUrl(url: String) {
-        if (isAnalyzing) {
-            Log.w(TAG, "Solicitud ignorada: ya hay un análisis en curso.")
-            return
-        }
+        analysisJob?.cancel()
 
-        isAnalyzing = true
-        viewModelScope.launch {
-            _uiState.value = ScanUiState.Loading
+        analysisJob = viewModelScope.launch {
+            val currentJob = currentCoroutineContext()[Job]
+            isAnalyzing = true
+            var historySummary: String? = null
+            var historyReasons: List<String>? = null
+            var historyRiskLevel: RiskLevel? = null
+            var historyAnalysisStatus: AnalysisStatus? = null
 
             try {
+                _uiState.value = ScanUiState.Loading
+
                 val response = analysisService.analyzeUrl(url)
                 val riskLevel = mapRiskLevel(response.riskLevel)
                 val analysisStatus = mapAnalysisStatus(response.analysisStatus)
+                historyRiskLevel = riskLevel
+                historyAnalysisStatus = analysisStatus
+                historySummary = response.summary
+                historyReasons = response.reasons
 
                 _uiState.value = ScanUiState.AnalysisResult(
                     riskLevel = riskLevel,
@@ -136,40 +180,68 @@ class MainViewModel(
                     analyzedUrl = url,
                 )
 
-                // Guardado secundario:
-                // primero actualizamos la UI para no alargar Loading en móviles lentos.
-                // Dejamos libre el candado de análisis antes de persistir, para evitar
-                // bloquear acciones del usuario si Room tarda en dispositivos lentos.
-                isAnalyzing = false
-                historyRepository.saveAnalysisResult(
-                    url = url,
-                    riskLevel = riskLevel,
-                    analysisStatus = analysisStatus,
-                    summary = response.summary,
-                    reasons = response.reasons,
-                )
+                // Solo el Job activo puede liberar el candado del analisis.
+                if (analysisJob === currentJob) {
+                    isAnalyzing = false
+                }
             } catch (exception: CancellationException) {
+                if (analysisJob === currentJob && _uiState.value is ScanUiState.Loading) {
+                    _uiState.value = ScanUiState.Idle
+                }
+                // La cancelacion forma parte del flujo normal: hay que relanzarla para que
+                // coroutines cierre correctamente este trabajo sin convertirlo en error funcional.
                 throw exception
             } catch (exception: IOException) {
-                // Error controlado de red: warning para diagnóstico sin marcar fallo crítico.
+                // Error controlado de red: warning para diagnostico sin marcar fallo critico.
                 Log.w(TAG, "Error de conexión con backend", exception)
                 _uiState.value = ScanUiState.Error(
                     "No se pudo conectar con el servicio de análisis.",
                 )
             } catch (exception: HttpException) {
-                // Error HTTP controlado: el servidor respondió, pero no en estado exitoso.
+                // Error HTTP controlado: el servidor respondio, pero no en estado exitoso.
                 Log.w(TAG, "Error HTTP backend: ${exception.code()}", exception)
                 _uiState.value = ScanUiState.Error(
                     "No se pudo completar el análisis. Inténtalo de nuevo.",
                 )
             } catch (exception: Exception) {
-                // Error no previsto: se registra como error para facilitar investigación.
+                // Error no previsto: se registra para facilitar investigacion.
                 Log.e(TAG, "Error inesperado al analizar URL", exception)
                 _uiState.value = ScanUiState.Error(
                     "No se pudo completar el análisis. Inténtalo de nuevo.",
                 )
             } finally {
-                isAnalyzing = false
+                if (analysisJob === currentJob) {
+                    isAnalyzing = false
+                    analysisJob = null
+                }
+            }
+
+            val summaryToSave = historySummary
+            val reasonsToSave = historyReasons
+            val riskLevelToSave = historyRiskLevel
+            val analysisStatusToSave = historyAnalysisStatus
+            if (
+                summaryToSave != null &&
+                reasonsToSave != null &&
+                riskLevelToSave != null &&
+                analysisStatusToSave != null
+            ) {
+                try {
+                    historyRepository.saveAnalysisResult(
+                        url = url,
+                        riskLevel = riskLevelToSave,
+                        analysisStatus = analysisStatusToSave,
+                        summary = summaryToSave,
+                        reasons = reasonsToSave,
+                    )
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    Log.w(
+                        TAG,
+                        "No se pudo guardar en historial: ${exception.javaClass.simpleName}",
+                    )
+                }
             }
         }
     }
@@ -198,28 +270,22 @@ class MainViewModel(
         }
     }
 
-    // Fuente unica de verdad para aceptar solo enlaces web HTTP/HTTPS con host.
-    private fun isValidWebUrl(value: String): Boolean {
-        return when (getUnsupportedWebUrlReason(value)) {
-            null -> true
+    private fun logUnsupportedWebUrlReason(reason: UnsupportedWebUrlReason) {
+        when (reason) {
             UnsupportedWebUrlReason.TOO_LONG -> {
                 Log.w(TAG, "URL rechazada: supera la longitud máxima permitida.")
-                false
             }
             UnsupportedWebUrlReason.CONTROL_CHARS -> {
                 Log.w(TAG, "URL rechazada: contiene caracteres de control.")
-                false
             }
             UnsupportedWebUrlReason.USERINFO -> {
                 Log.w(TAG, "URL rechazada: contiene userinfo.")
-                false
             }
             UnsupportedWebUrlReason.PARSE_ERROR -> {
                 Log.w(TAG, "Uri.parse falló al validar URL web.")
-                false
             }
             UnsupportedWebUrlReason.UNSUPPORTED_WEB_TARGET -> {
-                false
+                Log.w(TAG, "URL rechazada: el destino no es una web http/https válida.")
             }
         }
     }
@@ -233,4 +299,3 @@ class MainViewModel(
             .take(MAX_LOG_VALUE_LENGTH)
     }
 }
-

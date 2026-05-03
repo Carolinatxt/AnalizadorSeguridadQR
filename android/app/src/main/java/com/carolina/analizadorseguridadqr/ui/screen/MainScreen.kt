@@ -13,14 +13,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -35,10 +41,14 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
@@ -46,11 +56,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -58,6 +71,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -84,6 +100,10 @@ import com.carolina.analizadorseguridadqr.ui.theme.QrSuspicious
 import com.carolina.analizadorseguridadqr.ui.theme.QrSuspiciousSoft
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextPrimary
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextSecondary
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+private const val MAX_MANUAL_URL_LENGTH = 2048
 
 
 // Pantalla raíz: Compose representa estado y dispara callbacks.
@@ -93,36 +113,58 @@ fun MainScreen(
     onStartScan: () -> Unit,
     onShowIdle: () -> Unit,
     onRetryAnalysis: () -> Unit,
+    onManualUrlSubmitted: (String) -> Unit = {},
+    onManualUrlChanged: () -> Unit = {},
     onOpenLink: (String) -> Unit,
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
+    var manualUrl by rememberSaveable { mutableStateOf("") }
+    val isManualUrlTooLong = manualUrl.length > MAX_MANUAL_URL_LENGTH
+    val canSubmitManualUrl = manualUrl.isNotBlank() && !isManualUrlTooLong
+    val startScanAndClearManualUrl = {
+        manualUrl = ""
+        onStartScan()
+    }
+
     when (uiState) {
         ScanUiState.Idle -> HomeStateScreen(
-            onStartScan = onStartScan,
+            onStartScan = startScanAndClearManualUrl,
+            manualUrl = manualUrl,
+            isManualUrlTooLong = isManualUrlTooLong,
+            canSubmitManualUrl = canSubmitManualUrl,
+            onManualUrlChanged = { newValue ->
+                manualUrl = newValue
+                onManualUrlChanged()
+            },
+            onManualUrlSubmitted = {
+                onManualUrlSubmitted(manualUrl)
+            },
             onOpenHistory = onOpenHistory,
             onOpenSettings = onOpenSettings,
         )
         ScanUiState.Loading -> LoadingStateScreen(
+            onStartScan = startScanAndClearManualUrl,
             onOpenHistory = onOpenHistory,
             onOpenSettings = onOpenSettings,
         )
         is ScanUiState.NotAWebUrl -> NotWebUrlStateScreen(
             message = uiState.message,
-            onStartScan = onStartScan,
+            onStartScan = startScanAndClearManualUrl,
             onShowIdle = onShowIdle,
             onOpenHistory = onOpenHistory,
             onOpenSettings = onOpenSettings,
         )
         is ScanUiState.Error -> ErrorStateScreen(
             message = uiState.message,
-            onStartScan = onStartScan,
+            onStartScan = startScanAndClearManualUrl,
             onShowIdle = onShowIdle,
             onOpenHistory = onOpenHistory,
             onOpenSettings = onOpenSettings,
         )
         // ReadyToAnalyze es transitorio; visualmente usamos la pantalla de carga.
         is ScanUiState.ReadyToAnalyze -> LoadingStateScreen(
+            onStartScan = startScanAndClearManualUrl,
             onOpenHistory = onOpenHistory,
             onOpenSettings = onOpenSettings,
         )
@@ -139,6 +181,11 @@ fun MainScreen(
 @Composable
 private fun HomeStateScreen(
     onStartScan: () -> Unit,
+    manualUrl: String,
+    isManualUrlTooLong: Boolean,
+    canSubmitManualUrl: Boolean,
+    onManualUrlChanged: (String) -> Unit,
+    onManualUrlSubmitted: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -160,7 +207,11 @@ private fun HomeStateScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            QrTopBar(actionIcon = Icons.Outlined.History)
+            QrTopBar(
+                actionIcon = Icons.Outlined.History,
+                onActionClick = onOpenHistory,
+                actionContentDescription = "Historial",
+            )
             Spacer(modifier = Modifier.height(24.dp))
 
             Box(contentAlignment = Alignment.BottomEnd) {
@@ -218,19 +269,154 @@ private fun HomeStateScreen(
                 onClick = onStartScan,
             )
 
+            Spacer(modifier = Modifier.height(24.dp))
+            ManualUrlInputCard(
+                manualUrl = manualUrl,
+                isManualUrlTooLong = isManualUrlTooLong,
+                canSubmitManualUrl = canSubmitManualUrl,
+                onManualUrlChanged = onManualUrlChanged,
+                onManualUrlSubmitted = onManualUrlSubmitted,
+            )
+
             Spacer(modifier = Modifier.height(22.dp))
             Text(
-                text = "COMPRUEBA UN QR",
+                text = "ANALIZA ANTES DE ABRIR",
                 style = MaterialTheme.typography.labelLarge,
                 color = QrTextSecondary,
             )
             Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(120.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ManualUrlInputCard(
+    manualUrl: String,
+    isManualUrlTooLong: Boolean,
+    canSubmitManualUrl: Boolean,
+    onManualUrlChanged: (String) -> Unit,
+    onManualUrlSubmitted: () -> Unit,
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val coroutineScope = rememberCoroutineScope()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoViewRequester)
+            .clip(RoundedCornerShape(30.dp))
+            .background(QrCardBackground)
+            .padding(horizontal = 18.dp, vertical = 18.dp),
+    ) {
+        Column {
+            Text(
+                text = "Analizar enlace manualmente",
+                style = MaterialTheme.typography.titleMedium,
+                color = QrTextPrimary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Pega una URL y se analizará con el mismo sistema que los códigos QR.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = QrTextSecondary,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = manualUrl,
+                onValueChange = { newValue ->
+                    // No recortamos ni normalizamos la URL manual en la UI.
+                    // La validación debe trabajar con lo que el usuario introdujo realmente.
+                    onManualUrlChanged(newValue)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            coroutineScope.launch {
+                                delay(250)
+                                bringIntoViewRequester.bringIntoView()
+                            }
+                        }
+                    },
+                label = { Text("Pega o escribe una URL") },
+                placeholder = { Text("https://ejemplo.com") },
+                singleLine = true,
+                maxLines = 1,
+                isError = isManualUrlTooLong,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Search,
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        if (canSubmitManualUrl) {
+                            keyboardController?.hide()
+                            onManualUrlSubmitted()
+                        }
+                    },
+                ),
+                supportingText = {
+                    if (isManualUrlTooLong) {
+                        Text("La URL supera el límite máximo permitido.")
+                    } else {
+                        Text("Debe empezar por http:// o https://.")
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = QrGreenDark,
+                    unfocusedBorderColor = QrOutline,
+                    focusedLabelColor = QrGreenDark,
+                    unfocusedLabelColor = QrTextSecondary,
+                    focusedTextColor = QrTextPrimary,
+                    unfocusedTextColor = QrTextPrimary,
+                    cursorColor = QrGreenDark,
+                    focusedPlaceholderColor = QrTextSecondary,
+                    unfocusedPlaceholderColor = QrTextSecondary,
+                    focusedSupportingTextColor = if (isManualUrlTooLong) QrDanger else QrTextSecondary,
+                    unfocusedSupportingTextColor = if (isManualUrlTooLong) QrDanger else QrTextSecondary,
+                    errorBorderColor = QrDanger,
+                    errorLabelColor = QrDanger,
+                    errorCursorColor = QrDanger,
+                    errorSupportingTextColor = QrDanger,
+                ),
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    keyboardController?.hide()
+                    onManualUrlSubmitted()
+                },
+                enabled = canSubmitManualUrl,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(36.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = QrGreenDark,
+                    contentColor = Color.White,
+                    disabledContainerColor = QrOutline,
+                    disabledContentColor = QrTextSecondary,
+                ),
+            ) {
+                Text(
+                    text = "Analizar enlace",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun LoadingStateScreen(
+    onStartScan: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -239,6 +425,7 @@ private fun LoadingStateScreen(
         bottomBar = {
             VisualBottomBar(
                 selected = BottomBarItem.Scan,
+                onScanClick = onStartScan,
                 onHistoryClick = onOpenHistory,
                 onSettingsClick = onOpenSettings,
             )
@@ -248,11 +435,17 @@ private fun LoadingStateScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp)
+                .imePadding()
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            QrTopBar(actionIcon = Icons.Outlined.History)
-            Spacer(modifier = Modifier.weight(1f))
+            QrTopBar(
+                actionIcon = Icons.Outlined.History,
+                onActionClick = onOpenHistory,
+                actionContentDescription = "Historial",
+            )
+            Spacer(modifier = Modifier.height(40.dp))
 
             CircularProgressIndicator(
                 modifier = Modifier.size(70.dp),
@@ -275,7 +468,7 @@ private fun LoadingStateScreen(
                 color = QrTextSecondary,
                 textAlign = TextAlign.Center,
             )
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(28.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 LoadingDot(isActive = true)
@@ -296,7 +489,7 @@ private fun NotWebUrlStateScreen(
     onOpenSettings: () -> Unit,
 ) {
     val subtitle = if (message.isBlank()) {
-        "La app solo puede analizar códigos QR que abren páginas web para garantizar tu seguridad digital."
+        "La app solo puede analizar enlaces web que empiecen por http:// o https://."
     } else {
         message
     }
@@ -305,12 +498,13 @@ private fun NotWebUrlStateScreen(
         navigationIcon = Icons.AutoMirrored.Outlined.ArrowBack,
         onNavigationClick = onShowIdle,
         actionIcon = Icons.Outlined.History,
-        onActionClick = null,
+        onActionClick = onOpenHistory,
+        actionContentDescription = "Historial",
         illustration = { NotWebIllustration() },
-        title = "Este QR no contiene un enlace web",
+        title = "No se puede analizar este enlace",
         subtitle = subtitle,
         buttonsTopSpacerWeight = 1.35f,
-        primaryText = "Escanear otro QR",
+        primaryText = "Escanear QR",
         primaryIcon = Icons.Outlined.QrCode2,
         onPrimaryClick = onStartScan,
         secondaryText = "Volver",
@@ -339,10 +533,11 @@ private fun ErrorStateScreen(
         onNavigationClick = null,
         actionIcon = Icons.Outlined.Close,
         onActionClick = onShowIdle,
+        actionContentDescription = "Cerrar",
         illustration = { AnalysisErrorIllustration() },
         title = "No se puede analizar el enlace ahora mismo",
         subtitle = subtitle,
-        primaryText = "Escanear otro QR",
+        primaryText = "Escanear QR",
         primaryIcon = Icons.Outlined.QrCode2,
         onPrimaryClick = onStartScan,
         secondaryText = "Volver al inicio",
@@ -413,6 +608,7 @@ private fun AnalysisResultScreen(
             Column(
                 modifier = Modifier
                     .weight(1f)
+                    .imePadding()
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -496,6 +692,7 @@ private fun InfoStateLayout(
     onNavigationClick: (() -> Unit)?,
     actionIcon: ImageVector?,
     onActionClick: (() -> Unit)?,
+    actionContentDescription: String? = null,
     illustration: @Composable () -> Unit,
     title: String,
     subtitle: String,
@@ -530,6 +727,7 @@ private fun InfoStateLayout(
                 onNavigationClick = onNavigationClick,
                 actionIcon = actionIcon,
                 onActionClick = onActionClick,
+                actionContentDescription = actionContentDescription,
             )
             Spacer(modifier = Modifier.height(46.dp))
 
@@ -644,6 +842,7 @@ private fun QrTopBar(
     onNavigationClick: (() -> Unit)? = null,
     actionIcon: ImageVector? = null,
     onActionClick: (() -> Unit)? = null,
+    actionContentDescription: String? = null,
 ) {
     Row(
         modifier = Modifier
@@ -675,7 +874,7 @@ private fun QrTopBar(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "QR Scanner",
+                text = "Analizador QR",
                 style = MaterialTheme.typography.titleLarge,
                 color = QrGreenDark,
                 fontWeight = FontWeight.Bold,
@@ -687,7 +886,7 @@ private fun QrTopBar(
                 IconButton(onClick = onActionClick) {
                     Icon(
                         imageVector = actionIcon,
-                        contentDescription = null,
+                        contentDescription = actionContentDescription,
                         tint = QrTextSecondary,
                     )
                 }
@@ -695,7 +894,7 @@ private fun QrTopBar(
                 Box(modifier = Modifier.padding(12.dp)) {
                     Icon(
                         imageVector = actionIcon,
-                        contentDescription = null,
+                        contentDescription = actionContentDescription,
                         tint = QrTextSecondary,
                     )
                 }
@@ -1192,6 +1391,8 @@ private fun HomePreview() {
             onStartScan = {},
             onShowIdle = {},
             onRetryAnalysis = {},
+            onManualUrlSubmitted = {},
+            onManualUrlChanged = {},
             onOpenLink = {},
             onOpenHistory = {},
             onOpenSettings = {},
@@ -1208,6 +1409,8 @@ private fun LoadingPreview() {
             onStartScan = {},
             onShowIdle = {},
             onRetryAnalysis = {},
+            onManualUrlSubmitted = {},
+            onManualUrlChanged = {},
             onOpenLink = {},
             onOpenHistory = {},
             onOpenSettings = {},
@@ -1224,6 +1427,8 @@ private fun NotWebPreview() {
             onStartScan = {},
             onShowIdle = {},
             onRetryAnalysis = {},
+            onManualUrlSubmitted = {},
+            onManualUrlChanged = {},
             onOpenLink = {},
             onOpenHistory = {},
             onOpenSettings = {},
@@ -1240,6 +1445,8 @@ private fun ErrorPreview() {
             onStartScan = {},
             onShowIdle = {},
             onRetryAnalysis = {},
+            onManualUrlSubmitted = {},
+            onManualUrlChanged = {},
             onOpenLink = {},
             onOpenHistory = {},
             onOpenSettings = {},

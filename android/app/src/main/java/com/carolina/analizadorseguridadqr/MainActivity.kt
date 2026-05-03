@@ -103,6 +103,12 @@ class MainActivity : ComponentActivity() {
                 var showHistoryOpenLinkConfirmation by rememberSaveable { mutableStateOf(false) }
 
                 fun switchTab(tab: AppTab) {
+                    if (selectedTab == AppTab.SCAN && tab != AppTab.SCAN) {
+                        // Al salir de SCAN cancelamos cualquier analisis activo para que
+                        // no reaparezca un resultado antiguo cuando el usuario vuelva.
+                        viewModel.showIdle()
+                    }
+
                     selectedTab = tab
                     settingsSubScreen = SettingsSubScreen.HOME
                     showClearHistoryDialog = false
@@ -131,6 +137,8 @@ class MainActivity : ComponentActivity() {
                         onStartScan = ::startScan,
                         onShowIdle = viewModel::showIdle,
                         onRetryAnalysis = viewModel::retryLastAnalysis,
+                        onManualUrlSubmitted = viewModel::onManualUrlSubmitted,
+                        onManualUrlChanged = viewModel::onManualUrlChanged,
                         onOpenLink = ::openUrlInExternalBrowser,
                         onOpenHistory = { switchTab(AppTab.HISTORY) },
                         onOpenSettings = { switchTab(AppTab.SETTINGS) },
