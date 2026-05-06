@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -74,11 +73,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.carolina.analizadorseguridadqr.R
 import com.carolina.analizadorseguridadqr.ui.components.ScreenshotPreviewCard
+import com.carolina.analizadorseguridadqr.ui.navigation.AppBottomBar
+import com.carolina.analizadorseguridadqr.ui.navigation.AppTab
 import com.carolina.analizadorseguridadqr.ui.security.OpenLinkPolicy
 import com.carolina.analizadorseguridadqr.ui.security.resolveOpenLinkPolicy
 import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
@@ -86,8 +89,6 @@ import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
 import com.carolina.analizadorseguridadqr.ui.state.ScanUiState
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
 import com.carolina.analizadorseguridadqr.ui.theme.QrBackground
-import com.carolina.analizadorseguridadqr.ui.theme.QrBottomBarBackground
-import com.carolina.analizadorseguridadqr.ui.theme.QrBottomBarSelected
 import com.carolina.analizadorseguridadqr.ui.theme.QrCardBackground
 import com.carolina.analizadorseguridadqr.ui.theme.QrDanger
 import com.carolina.analizadorseguridadqr.ui.theme.QrDangerSoft
@@ -193,8 +194,8 @@ private fun HomeStateScreen(
     Scaffold(
         containerColor = QrBackground,
         bottomBar = {
-            VisualBottomBar(
-                selected = BottomBarItem.Scan,
+            AppBottomBar(
+                selectedTab = AppTab.SCAN,
                 onHistoryClick = onOpenHistory,
                 onSettingsClick = onOpenSettings,
             )
@@ -424,8 +425,8 @@ private fun LoadingStateScreen(
     Scaffold(
         containerColor = QrBackground,
         bottomBar = {
-            VisualBottomBar(
-                selected = BottomBarItem.Scan,
+            AppBottomBar(
+                selectedTab = AppTab.SCAN,
                 onScanClick = onStartScan,
                 onHistoryClick = onOpenHistory,
                 onSettingsClick = onOpenSettings,
@@ -592,8 +593,8 @@ private fun AnalysisResultScreen(
     Scaffold(
         containerColor = QrBackground,
         bottomBar = {
-            VisualBottomBar(
-                selected = BottomBarItem.Scan,
+            AppBottomBar(
+                selectedTab = AppTab.SCAN,
                 onHistoryClick = onOpenHistory,
                 onSettingsClick = onOpenSettings,
             )
@@ -719,8 +720,8 @@ private fun InfoStateLayout(
     Scaffold(
         containerColor = QrBackground,
         bottomBar = {
-            VisualBottomBar(
-                selected = BottomBarItem.Scan,
+            AppBottomBar(
+                selectedTab = AppTab.SCAN,
                 onHistoryClick = onOpenHistory,
                 onSettingsClick = onOpenSettings,
             )
@@ -885,7 +886,7 @@ private fun QrTopBar(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Analizador QR",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.titleLarge,
                 color = QrGreenDark,
                 fontWeight = FontWeight.Bold,
@@ -1307,89 +1308,6 @@ private fun extractDisplayDomain(url: String?): String {
     } catch (exception: Exception) {
         Log.w("MainScreen", "extractDisplayDomain: fallo al parsear dominio (${exception.javaClass.simpleName})")
         cleanUrl.take(48)
-    }
-}
-
-private enum class BottomBarItem {
-    Scan,
-    History,
-    Settings,
-}
-
-// Barra inferior reutilizable para las pantallas principales de la app.
-@Composable
-private fun VisualBottomBar(
-    selected: BottomBarItem,
-    onScanClick: () -> Unit = {},
-    onHistoryClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {},
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-            .background(QrBottomBarBackground)
-            .padding(horizontal = 18.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        BottomBarVisualItem(
-            modifier = Modifier.weight(1f),
-            label = "ESCANEAR",
-            icon = Icons.Outlined.QrCode2,
-            selected = selected == BottomBarItem.Scan,
-            onClick = onScanClick,
-        )
-        BottomBarVisualItem(
-            modifier = Modifier.weight(1f),
-            label = "HISTORIAL",
-            icon = Icons.Outlined.History,
-            selected = selected == BottomBarItem.History,
-            onClick = onHistoryClick,
-        )
-        BottomBarVisualItem(
-            modifier = Modifier.weight(1f),
-            label = "AJUSTES",
-            icon = Icons.Outlined.Settings,
-            selected = selected == BottomBarItem.Settings,
-            onClick = onSettingsClick,
-        )
-    }
-}
-
-@Composable
-private fun BottomBarVisualItem(
-    modifier: Modifier = Modifier,
-    label: String,
-    icon: ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val background = if (selected) QrBottomBarSelected else Color.Transparent
-    val tint = if (selected) QrGreenDark else QrTextSecondary
-
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(background)
-            .semantics { role = Role.Button }
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = tint,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }
 

@@ -6,13 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,9 +23,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,11 +43,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.carolina.analizadorseguridadqr.ui.navigation.AppBottomBar
+import com.carolina.analizadorseguridadqr.ui.navigation.AppTab
 import com.carolina.analizadorseguridadqr.ui.state.AnalysisStatus
 import com.carolina.analizadorseguridadqr.ui.state.RiskLevel
 import com.carolina.analizadorseguridadqr.ui.theme.QrBackground
-import com.carolina.analizadorseguridadqr.ui.theme.QrBottomBarBackground
-import com.carolina.analizadorseguridadqr.ui.theme.QrBottomBarSelected
 import com.carolina.analizadorseguridadqr.ui.theme.QrCardBackground
 import com.carolina.analizadorseguridadqr.ui.theme.QrDanger
 import com.carolina.analizadorseguridadqr.ui.theme.QrDangerSoft
@@ -82,9 +77,10 @@ fun HistoryScreen(
     Scaffold(
         containerColor = QrBackground,
         bottomBar = {
-            HistoryBottomBar(
-                onScanTabClick = onScanTabClick,
-                onSettingsTabClick = onSettingsTabClick,
+            AppBottomBar(
+                selectedTab = AppTab.HISTORY,
+                onScanClick = onScanTabClick,
+                onSettingsClick = onSettingsTabClick,
             )
         },
     ) { paddingValues ->
@@ -403,75 +399,5 @@ private fun HistoryEmptyState(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@Composable
-private fun HistoryBottomBar(
-    onScanTabClick: () -> Unit,
-    onSettingsTabClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-            .background(QrBottomBarBackground)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        BottomBarItem(
-            label = "ESCANEAR",
-            icon = Icons.Outlined.QrCode2,
-            selected = false,
-            onClick = onScanTabClick,
-        )
-        BottomBarItem(
-            label = "HISTORIAL",
-            icon = Icons.Outlined.History,
-            selected = true,
-            onClick = {},
-        )
-        BottomBarItem(
-            label = "AJUSTES",
-            icon = Icons.Outlined.Settings,
-            selected = false,
-            onClick = onSettingsTabClick,
-        )
-    }
-}
-
-@Composable
-private fun RowScope.BottomBarItem(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val itemTint = if (selected) QrGreenDark else QrTextSecondary
-    val itemBackground = if (selected) QrBottomBarSelected else Color.Transparent
-    Box(
-        modifier = Modifier
-            .weight(1f)
-            .heightIn(min = 56.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(itemBackground)
-            .semantics { role = Role.Button }
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = itemTint,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = itemTint,
-            )
-        }
     }
 }
