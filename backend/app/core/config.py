@@ -38,11 +38,32 @@ def _get_positive_float_from_env(var_name: str, default: float) -> float:
     return parsed_value
 
 
+def _get_bool_from_env(var_name: str, default: bool) -> bool:
+    raw_value = _clean_env_value(os.getenv(var_name))
+    if raw_value is None:
+        return default
+
+    normalized = raw_value.lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+
+    logger.warning(
+        "%s invalida en entorno; se usa valor por defecto %s",
+        var_name,
+        default,
+    )
+    return default
+
+
 WEBRISK_API_KEY: str | None = _clean_env_value(
     os.getenv("WEBRISK_API_KEY") or os.getenv("GOOGLE_WEB_RISK_API_KEY")
 )
 IPQS_API_KEY: str | None = _clean_env_value(os.getenv("IPQS_API_KEY"))
 SNAPRENDER_API_KEY: str | None = _clean_env_value(os.getenv("SNAPRENDER_API_KEY"))
+OPENPHISH_ENABLED: bool = _get_bool_from_env("OPENPHISH_ENABLED", default=False)
+OPENPHISH_DB_PATH: str | None = _clean_env_value(os.getenv("OPENPHISH_DB_PATH"))
 
 # Politica de seguridad para /api/v1/analyze:
 # cada solicitud consume cuota de proveedores externos (Web Risk + IPQS)

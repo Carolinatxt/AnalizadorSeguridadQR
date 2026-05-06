@@ -2,42 +2,135 @@ from typing import Literal
 
 from app.domain.summary_builder import build_user_explanation
 from app.models.schemas import AnalyzeUrlResponse
-from app.services.provider_results import IpqsResult, WebRiskResult
+from app.services.provider_results import IpqsResult, OpenPhishResult, WebRiskResult
 
 AnalysisStatus = Literal["complete", "partial", "unavailable"]
+DangerousSource = Literal[
+    "openphish_exact_url",
+    "web_risk_malware",
+    "web_risk_social_engineering",
+    "ipqs_phishing_high_score",
+    "ipqs_malware_high_score",
+]
 _IPQS_DANGEROUS_SCORE_THRESHOLD: int = 85
 _IPQS_SAFE_SCORE_THRESHOLD: int = 60
+_OPENPHISH_EXACT_URL_DANGEROUS_MAX_AGE_DAYS: int = 30
+_OPENPHISH_EXACT_HOST_SUSPICIOUS_MAX_AGE_DAYS: int = 15
+
 
 def compute_analysis_status(
     web_risk: WebRiskResult,
     ipqs: IpqsResult,
+    openphish: OpenPhishResult,
 ) -> AnalysisStatus:
-    if (not web_risk.available) and (not ipqs.available):
-        return "unavailable"
+    if web_risk.available and ipqs.available:
+        return "complete"
     if web_risk.available != ipqs.available:
         return "partial"
-    return "complete"
+    if openphish.available and openphish.match_found:
+        return "partial"
+    return "unavailable"
 
 
-def is_dangerous(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
+def _is_openphish_exact_url_match(openphish: OpenPhishResult) -> bool:
+    return openphish.available and openphish.match_found and openphish.match_type == "exact_url"
+
+
+def _is_openphish_exact_host_match(openphish: OpenPhishResult) -> bool:
+    return openphish.available and openphish.match_found and openphish.match_type == "exact_host"
+
+
+def _is_recent_openphish_exact_url_match(openphish: OpenPhishResult) -> bool:
+    return (
+        _is_openphish_exact_url_match(openphish)
+        and openphish.age_days is not None
+        and openphish.age_days <= _OPENPHISH_EXACT_URL_DANGEROUS_MAX_AGE_DAYS
+    )
+
+
+def _is_stale_or_unknown_openphish_exact_url_match(openphish: OpenPhishResult) -> bool:
+    return _is_openphish_exact_url_match(openphish) and (
+        openphish.age_days is None
+        or openphish.age_days > _OPENPHISH_EXACT_URL_DANGEROUS_MAX_AGE_DAYS
+    )
+
+
+def _is_recent_openphish_exact_host_match(openphish: OpenPhishResult) -> bool:
+    return (
+        _is_openphish_exact_host_match(openphish)
+        and openphish.age_days is not None
+        and openphish.age_days <= _OPENPHISH_EXACT_HOST_SUSPICIOUS_MAX_AGE_DAYS
+    )
+
+
+def _openphish_blocks_safe(openphish: OpenPhishResult) -> bool:
+    # Regla formal de producto:
+    # si OpenPhish esta disponible y encuentra cualquier coincidencia,
+    # safe queda bloqueado aunque esa coincidencia no eleve por si sola
+    # a dangerous. Si no hay dangerous, el flujo cae a suspicious.
+    return openphish.available and openphish.match_found
+
+
+def is_dangerous(
+    web_risk: WebRiskResult,
+    ipqs: IpqsResult,
+    openphish: OpenPhishResult,
+) -> bool:
     # UNWANTED_SOFTWARE no eleva directamente a dangerous: se trata como
     # señal de riesgo medio que bloquea safe y mantiene clasificación conservadora.
     web_risk_has_malware = "MALWARE" in web_risk.threat_types
     web_risk_has_social_engineering = "SOCIAL_ENGINEERING" in web_risk.threat_types
+    openphish_dangerous = _is_recent_openphish_exact_url_match(openphish)
     ipqs_dangerous = (
         (ipqs.phishing is True or ipqs.malware is True)
         and ipqs.risk_score is not None
         and ipqs.risk_score >= _IPQS_DANGEROUS_SCORE_THRESHOLD
     )
 
-    return web_risk_has_malware or web_risk_has_social_engineering or ipqs_dangerous
+    return (
+        openphish_dangerous
+        or web_risk_has_malware
+        or web_risk_has_social_engineering
+        or ipqs_dangerous
+    )
 
 
-def is_safe(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
+def get_dangerous_source(
+    web_risk: WebRiskResult,
+    ipqs: IpqsResult,
+    openphish: OpenPhishResult,
+) -> DangerousSource | None:
+    if _is_recent_openphish_exact_url_match(openphish):
+        return "openphish_exact_url"
+    if "MALWARE" in web_risk.threat_types:
+        return "web_risk_malware"
+    if "SOCIAL_ENGINEERING" in web_risk.threat_types:
+        return "web_risk_social_engineering"
+    if (
+        ipqs.phishing is True
+        and ipqs.risk_score is not None
+        and ipqs.risk_score >= _IPQS_DANGEROUS_SCORE_THRESHOLD
+    ):
+        return "ipqs_phishing_high_score"
+    if (
+        ipqs.malware is True
+        and ipqs.risk_score is not None
+        and ipqs.risk_score >= _IPQS_DANGEROUS_SCORE_THRESHOLD
+    ):
+        return "ipqs_malware_high_score"
+    return None
+
+
+def is_safe(
+    web_risk: WebRiskResult,
+    ipqs: IpqsResult,
+    openphish: OpenPhishResult,
+) -> bool:
     web_risk_has_any_threat = len(web_risk.threat_types) > 0
     return (
         web_risk.available
         and ipqs.available
+        and (not _openphish_blocks_safe(openphish))
         and (not web_risk_has_any_threat)
         and ipqs.success
         and ipqs.risk_score is not None
@@ -49,17 +142,20 @@ def is_safe(web_risk: WebRiskResult, ipqs: IpqsResult) -> bool:
     )
 
 
-def build_response(web_risk: WebRiskResult, ipqs: IpqsResult) -> AnalyzeUrlResponse:
-    analysis_status = compute_analysis_status(web_risk, ipqs)
-    if analysis_status == "unavailable":
-        risk_level = "suspicious"
-    elif is_dangerous(web_risk, ipqs):
+def build_response(
+    web_risk: WebRiskResult,
+    ipqs: IpqsResult,
+    openphish: OpenPhishResult,
+) -> AnalyzeUrlResponse:
+    analysis_status = compute_analysis_status(web_risk, ipqs, openphish)
+    if is_dangerous(web_risk, ipqs, openphish):
         risk_level = "dangerous"
-    elif is_safe(web_risk, ipqs):
+    elif is_safe(web_risk, ipqs, openphish):
         risk_level = "safe"
     else:
         # Fallback deliberado a suspicious:
-        # riesgo medio en escenario de análisis parcial o evidencia insuficiente.
+        # incluye señales de OpenPhish no concluyentes, Web Risk con
+        # UNWANTED_SOFTWARE, señales medias de IPQS y estados partial/unavailable.
         # Evita falsos "safe" cuando hay incertidumbre operativa o señales ambiguas.
         risk_level = "suspicious"
 
@@ -68,6 +164,7 @@ def build_response(web_risk: WebRiskResult, ipqs: IpqsResult) -> AnalyzeUrlRespo
         analysis_status=analysis_status,
         web_risk=web_risk,
         ipqs=ipqs,
+        openphish=openphish,
     )
     return AnalyzeUrlResponse(
         risk_level=risk_level,

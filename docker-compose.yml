@@ -9,4 +9,5 @@ services:
       - ./backend/.env
     volumes:
       - ./backend/app:/app/app
+      - ./backend/data:/app/data
     restart: unless-stopped

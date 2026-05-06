@@ -2,3 +2,8 @@ backend/.env
 backend/.venv/
 **/__pycache__/
 *.pyc
+backend/data/
+backend/tests/.tmp_openphish_*/
+backend/tests/tmp*/
+*.sqlite
+*.csv

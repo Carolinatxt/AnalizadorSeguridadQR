@@ -11,6 +11,14 @@ ProviderStatus = Literal[
     "internal_error",
     "timeout_error",
 ]
+OpenPhishProviderStatus = Literal[
+    "ok",
+    "disabled",
+    "db_missing",
+    "db_error",
+    "internal_error",
+]
+OpenPhishMatchType = Literal["exact_url", "exact_host", "none"]
 
 
 @dataclass(frozen=True)
@@ -276,4 +284,100 @@ class IpqsResult:
             spamming=spamming,
             domain_age_human=domain_age_human,
             raw_summary="analisis completado",
+        )
+
+
+@dataclass(frozen=True)
+class OpenPhishResult:
+    """Resultado interno de OpenPhish.
+
+    OpenPhish aporta cobertura especifica sobre phishing conocido y documentado,
+    pero no sustituye Web Risk ni IPQS, que siguen cubriendo otras amenazas
+    como malware, software no deseado o reputacion contextual.
+
+    Nota: available=True significa que la SQLite local pudo consultarse.
+    No implica que haya coincidencia, ni que el dato sea reciente.
+    """
+
+    provider_status: OpenPhishProviderStatus
+    available: bool
+    match_found: bool
+    match_type: OpenPhishMatchType
+    age_days: int | None = None
+    brand: str | None = None
+    sector: str | None = None
+    family_id: str | None = None
+    is_spear: bool | None = None
+    raw_summary: str = ""
+
+    @classmethod
+    def from_disabled(cls) -> "OpenPhishResult":
+        return cls(
+            provider_status="disabled",
+            available=False,
+            match_found=False,
+            match_type="none",
+            raw_summary="OpenPhish deshabilitado",
+        )
+
+    @classmethod
+    def from_db_missing(cls) -> "OpenPhishResult":
+        return cls(
+            provider_status="db_missing",
+            available=False,
+            match_found=False,
+            match_type="none",
+            raw_summary="base SQLite de OpenPhish no disponible",
+        )
+
+    @classmethod
+    def from_db_error(
+        cls,
+        summary: str = "error al consultar SQLite de OpenPhish",
+    ) -> "OpenPhishResult":
+        return cls(
+            provider_status="db_error",
+            available=False,
+            match_found=False,
+            match_type="none",
+            raw_summary=summary,
+        )
+
+    @classmethod
+    def from_internal_error(
+        cls,
+        summary: str = "error interno al consultar OpenPhish",
+    ) -> "OpenPhishResult":
+        return cls(
+            provider_status="internal_error",
+            available=False,
+            match_found=False,
+            match_type="none",
+            raw_summary=summary,
+        )
+
+    @classmethod
+    def from_success(
+        cls,
+        *,
+        match_found: bool,
+        match_type: OpenPhishMatchType = "none",
+        age_days: int | None = None,
+        brand: str | None = None,
+        sector: str | None = None,
+        family_id: str | None = None,
+        is_spear: bool | None = None,
+    ) -> "OpenPhishResult":
+        resolved_match_type: OpenPhishMatchType = match_type if match_found else "none"
+        return cls(
+            provider_status="ok",
+            available=True,
+            match_found=match_found,
+            match_type=resolved_match_type,
+            age_days=age_days,
+            brand=brand,
+            sector=sector,
+            family_id=family_id,
+            is_spear=is_spear,
+            raw_summary="match encontrado" if match_found else "sin coincidencia",
         )
