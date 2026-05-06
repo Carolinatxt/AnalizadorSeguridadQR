@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -121,7 +122,7 @@ fun HistorySettingsScreen(
                     onClick = onClearHistoryClick,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = QrDanger,
-                        contentColor = QrBackground,
+                        contentColor = Color.White,
                     ),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
                     modifier = Modifier

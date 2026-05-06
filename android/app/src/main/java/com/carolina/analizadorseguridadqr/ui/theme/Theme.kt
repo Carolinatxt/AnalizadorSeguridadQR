@@ -10,50 +10,65 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = QrGreenLight,
-    secondary = QrSecondaryButton,
-    tertiary = QrGreenSoft,
-    background = QrBackground,
-    surface = QrCardBackground,
-    onPrimary = QrTextPrimary,
-    onSecondary = QrTextPrimary,
-    onBackground = QrTextPrimary,
-    onSurface = QrTextPrimary,
+private fun lightColorSchemeFor(palette: QrPalette) = lightColorScheme(
+    primary = palette.greenDark,
+    secondary = palette.secondaryButton,
+    tertiary = palette.greenSoft,
+    background = palette.background,
+    surface = palette.cardBackground,
+    surfaceVariant = palette.bottomBarBackground,
+    outline = palette.outline,
+    error = palette.danger,
+    onPrimary = palette.cardBackground,
+    onSecondary = palette.textPrimary,
+    onTertiary = palette.textPrimary,
+    onBackground = palette.textPrimary,
+    onSurface = palette.textPrimary,
+    onSurfaceVariant = palette.textSecondary,
+    onError = palette.cardBackground,
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = QrGreenDark,
-    secondary = QrSecondaryButton,
-    tertiary = QrGreenSoft,
-    background = QrBackground,
-    surface = QrCardBackground,
-    onPrimary = QrCardBackground,
-    onSecondary = QrTextPrimary,
-    onBackground = QrTextPrimary,
-    onSurface = QrTextPrimary,
+private fun darkColorSchemeFor(palette: QrPalette) = darkColorScheme(
+    primary = palette.greenDark,
+    secondary = palette.secondaryButton,
+    tertiary = palette.greenSoft,
+    background = palette.background,
+    surface = palette.cardBackground,
+    surfaceVariant = palette.bottomBarBackground,
+    outline = palette.outline,
+    error = palette.danger,
+    onPrimary = palette.background,
+    onSecondary = palette.textPrimary,
+    onTertiary = palette.textPrimary,
+    onBackground = palette.textPrimary,
+    onSurface = palette.textPrimary,
+    onSurfaceVariant = palette.textSecondary,
+    onError = palette.background,
 )
 
 @Composable
 fun AnalizadorSeguridadQRTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Se desactiva por defecto para respetar los colores del prototipo.
+    // Se desactiva por defecto para respetar la identidad visual de la app.
     dynamicColor: Boolean = false,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
+    val palette = qrPaletteFor(darkTheme)
+    applyQrPalette(palette)
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> darkColorSchemeFor(palette)
+        else -> lightColorSchemeFor(palette)
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content
+        content = content,
     )
 }

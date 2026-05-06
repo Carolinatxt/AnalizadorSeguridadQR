@@ -22,14 +22,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
 import com.carolina.analizadorseguridadqr.ui.theme.QrBackground
-import com.carolina.analizadorseguridadqr.ui.theme.QrBottomBarBackground
-import com.carolina.analizadorseguridadqr.ui.theme.QrIconMuted
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextPrimary
 import com.carolina.analizadorseguridadqr.ui.theme.QrTextSecondary
+import com.carolina.analizadorseguridadqr.ui.theme.ThemeMode
+import com.carolina.analizadorseguridadqr.ui.theme.toDisplayLabel
 
 @Composable
 fun SettingsHomeScreen(
+    currentThemeMode: ThemeMode,
     onBackClick: () -> Unit,
+    onAppearanceClick: () -> Unit,
     onHistoryShortcutClick: () -> Unit,
     onHistorySettingsClick: () -> Unit,
     onPrivacyClick: () -> Unit,
@@ -64,7 +66,7 @@ fun SettingsHomeScreen(
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-            SettingsSectionLabel(text = "CONFIGURACIÓN GENERAL")
+            SettingsSectionLabel(text = "CONFIGURACION GENERAL")
             Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = "QR Scanner Security",
@@ -83,22 +85,17 @@ fun SettingsHomeScreen(
 
             Spacer(modifier = Modifier.height(26.dp))
 
-            // La apariencia solo se activará cuando el tema pueda
-            // guardarse y aplicarse de forma real en toda la app.
-            SettingsInfoCard(
+            SettingsOptionCard(
                 title = "Apariencia",
-                body = "Disponible en futuras versiones.",
+                subtitle = "Tema actual: ${currentThemeMode.toDisplayLabel()}",
                 icon = Icons.Outlined.Palette,
-                titleColor = QrTextSecondary,
-                bodyColor = QrTextSecondary,
-                iconTint = QrIconMuted,
-                iconBackground = QrBottomBarBackground,
-                iconContentDescription = "Apariencia, no disponible",
+                onClick = onAppearanceClick,
+                testTag = "settings_appearance_card",
             )
             Spacer(modifier = Modifier.height(14.dp))
             SettingsOptionCard(
                 title = "Ajustes Historial",
-                subtitle = "Registro local y borrado de análisis",
+                subtitle = "Registro local y borrado de analisis",
                 icon = Icons.Outlined.History,
                 onClick = onHistorySettingsClick,
                 testTag = "settings_history_card",
@@ -119,9 +116,11 @@ fun SettingsHomeScreen(
 @Preview(showBackground = true)
 @Composable
 private fun SettingsHomeScreenPreview() {
-    AnalizadorSeguridadQRTheme {
+    AnalizadorSeguridadQRTheme(darkTheme = false) {
         SettingsHomeScreen(
+            currentThemeMode = ThemeMode.SYSTEM,
             onBackClick = {},
+            onAppearanceClick = {},
             onHistoryShortcutClick = {},
             onHistorySettingsClick = {},
             onPrivacyClick = {},

@@ -13,9 +13,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.AlertDialog
@@ -24,6 +26,7 @@ import androidx.compose.material3.TextButton
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.carolina.analizadorseguridadqr.data.local.history.AppDatabase
+import com.carolina.analizadorseguridadqr.data.preferences.ThemePreferencesRepository
 import com.carolina.analizadorseguridadqr.data.repository.ScanHistoryRepository
 import com.carolina.analizadorseguridadqr.security.isSupportedWebUrl
 import com.carolina.analizadorseguridadqr.ui.history.HistoryDetailDialog
@@ -35,16 +38,20 @@ import com.carolina.analizadorseguridadqr.ui.history.HistoryViewModel
 import com.carolina.analizadorseguridadqr.ui.history.HistoryViewModelFactory
 import com.carolina.analizadorseguridadqr.ui.navigation.AppTab
 import com.carolina.analizadorseguridadqr.ui.screen.MainScreen
+import com.carolina.analizadorseguridadqr.ui.settings.AppearanceSettingsScreen
 import com.carolina.analizadorseguridadqr.ui.settings.HistorySettingsScreen
 import com.carolina.analizadorseguridadqr.ui.settings.PrivacySettingsScreen
 import com.carolina.analizadorseguridadqr.ui.security.resolveOpenLinkPolicy
 import com.carolina.analizadorseguridadqr.ui.settings.SettingsHomeScreen
 import com.carolina.analizadorseguridadqr.ui.settings.SettingsSubScreen
 import com.carolina.analizadorseguridadqr.ui.theme.AnalizadorSeguridadQRTheme
+import com.carolina.analizadorseguridadqr.ui.theme.ThemeMode
+import com.carolina.analizadorseguridadqr.ui.theme.resolveDarkTheme
 import com.carolina.analizadorseguridadqr.viewmodel.MainViewModel
 import com.carolina.analizadorseguridadqr.viewmodel.MainViewModelFactory
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import kotlinx.coroutines.launch
 
 // Activity mínima: conecta ViewModel + Compose.
 // Aquí no metemos lógica de negocio, solo coordinación de UI.
@@ -52,6 +59,10 @@ class MainActivity : ComponentActivity() {
     private val historyRepository: ScanHistoryRepository by lazy {
         val database = AppDatabase.getInstance(applicationContext)
         ScanHistoryRepository(database.scanHistoryDao())
+    }
+
+    private val themePreferencesRepository: ThemePreferencesRepository by lazy {
+        ThemePreferencesRepository(applicationContext)
     }
 
     // El ViewModel vive asociado al ciclo de vida de esta Activity.
@@ -88,7 +99,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            AnalizadorSeguridadQRTheme {
+            val themeMode by themePreferencesRepository.themeMode.collectAsStateWithLifecycle(
+                initialValue = ThemeMode.SYSTEM,
+            )
+            val themeScope = rememberCoroutineScope()
+
+            AnalizadorSeguridadQRTheme(
+                darkTheme = themeMode.resolveDarkTheme(isSystemInDarkTheme()),
+            ) {
                 // Convertimos StateFlow en estado observable por Compose.
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val historyItems by historyViewModel.historyItems.collectAsStateWithLifecycle()
@@ -156,9 +174,12 @@ class MainActivity : ComponentActivity() {
                     )
 
                     AppTab.SETTINGS -> when (settingsSubScreen) {
-                        SettingsSubScreen.HOME,
-                        SettingsSubScreen.APPEARANCE -> SettingsHomeScreen(
+                        SettingsSubScreen.HOME -> SettingsHomeScreen(
+                            currentThemeMode = themeMode,
                             onBackClick = { switchTab(AppTab.SCAN) },
+                            onAppearanceClick = {
+                                settingsSubScreen = SettingsSubScreen.APPEARANCE
+                            },
                             onHistoryShortcutClick = {
                                 settingsSubScreen = SettingsSubScreen.HOME
                                 switchTab(AppTab.HISTORY)
@@ -169,6 +190,21 @@ class MainActivity : ComponentActivity() {
                             onPrivacyClick = {
                                 settingsSubScreen = SettingsSubScreen.PRIVACY
                             },
+                            onScanTabClick = { switchTab(AppTab.SCAN) },
+                            onHistoryTabClick = { switchTab(AppTab.HISTORY) },
+                            onSettingsTabClick = {},
+                        )
+
+                        SettingsSubScreen.APPEARANCE -> AppearanceSettingsScreen(
+                            selectedThemeMode = themeMode,
+                            onThemeModeSelected = { selectedMode ->
+                                if (selectedMode != themeMode) {
+                                    themeScope.launch {
+                                        themePreferencesRepository.setThemeMode(selectedMode)
+                                    }
+                                }
+                            },
+                            onBackClick = { settingsSubScreen = SettingsSubScreen.HOME },
                             onScanTabClick = { switchTab(AppTab.SCAN) },
                             onHistoryTabClick = { switchTab(AppTab.HISTORY) },
                             onSettingsTabClick = {},
