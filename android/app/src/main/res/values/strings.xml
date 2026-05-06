@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">QR Scanner Security</string>
+    <string name="scanner_prompt">Coloca el QR dentro del recuadro</string>
 </resources>

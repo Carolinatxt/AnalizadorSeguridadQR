@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.carolina.analizadorseguridadqr.R
 import com.carolina.analizadorseguridadqr.data.local.history.AppDatabase
 import com.carolina.analizadorseguridadqr.data.preferences.ThemePreferencesRepository
 import com.carolina.analizadorseguridadqr.data.repository.ScanHistoryRepository
@@ -335,9 +336,11 @@ class MainActivity : ComponentActivity() {
         val options = ScanOptions().apply {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
             setPrompt("Enfoca el código QR")
+            setPrompt(getString(R.string.scanner_prompt))
             setBeepEnabled(false)
             setBarcodeImageEnabled(false)
-            setOrientationLocked(false)
+            setOrientationLocked(true)
+            setCaptureActivity(QrCaptureActivity::class.java)
         }
 
         qrScannerLauncher.launch(options)
