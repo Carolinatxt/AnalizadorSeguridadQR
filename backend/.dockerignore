@@ -4,3 +4,10 @@ __pycache__/
 *.pyd
 .venv/
 .env
+openphish.csv
+openphish.sqlite
+data/openphish.csv
+data/openphish.sqlite
+data/*.db
+data/*.sqlite
+data/*.csv

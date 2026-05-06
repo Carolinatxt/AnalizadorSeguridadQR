@@ -24,7 +24,7 @@ Ejemplo en `backend/.env.example`:
 
 ```env
 OPENPHISH_ENABLED=false
-OPENPHISH_DB_PATH=./data/openphish.sqlite
+OPENPHISH_DB_PATH=/app/data/openphish.sqlite
 ```
 
 Comportamiento esperado:
@@ -34,7 +34,22 @@ Comportamiento esperado:
 
 ## Importacion del CSV a SQLite
 
-La importacion es manual. El script actual es:
+Con Docker, la importacion puede automatizarse al arrancar el contenedor.
+Si `OPENPHISH_ENABLED=true`, existe `backend/data/openphish.csv` y todavia no
+existe `backend/data/openphish.sqlite`, el contenedor generara la SQLite antes
+de arrancar Uvicorn.
+
+Flujo recomendado con Docker:
+
+1. Guardar el CSV real como `backend/data/openphish.csv`.
+2. Configurar `OPENPHISH_ENABLED=true`.
+3. Configurar `OPENPHISH_DB_PATH=/app/data/openphish.sqlite`.
+4. Ejecutar `docker compose up --build`.
+
+Si `openphish.csv` no existe, el backend sigue arrancando y OpenPhish se
+tratara como no disponible.
+
+La importacion manual sigue disponible. El script actual es:
 
 ```powershell
 cd backend
@@ -49,7 +64,9 @@ El script:
 - crea indices para consulta por URL, host, familia y fecha de descubrimiento;
 - muestra solo un resumen final de filas leidas, importadas, duplicadas e invalidas.
 
-Ni el CSV ni la SQLite deben subirse al repositorio.
+Ni el CSV ni la SQLite deben subirse al repositorio. El repo solo incluye
+`backend/data/openphish.example.csv` con la cabecera esperada y
+`backend/data/README.md` con instrucciones de uso local.
 
 ## Limitaciones actuales
 
