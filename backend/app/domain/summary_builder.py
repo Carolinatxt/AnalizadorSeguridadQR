@@ -7,6 +7,11 @@ MAX_REASON_LENGTH = 120
 _OPENPHISH_EXACT_URL_DANGEROUS_MAX_AGE_DAYS = 30
 _OPENPHISH_EXACT_HOST_SUSPICIOUS_MAX_AGE_DAYS = 15
 logger = logging.getLogger(__name__)
+_GENERIC_OPENPHISH_BRANDS = {
+    "generic/spear phishing",
+    "crypto/wallet",
+    "webmail providers",
+}
 
 
 def build_user_explanation(
@@ -211,22 +216,54 @@ def _build_openphish_reasons(openphish: OpenPhishResult) -> list[str]:
         return []
 
     reasons: list[str] = []
+    display_brand = _sanitize_brand_for_display(openphish.brand)
     if _is_recent_openphish_exact_url_match(openphish):
-        reasons.append("El enlace coincide con una URL identificada como phishing.")
+        if display_brand is not None:
+            reasons.append(
+                f"El enlace coincide con una URL de phishing asociada a {display_brand}."
+            )
+        else:
+            reasons.append("El enlace coincide con una URL identificada como phishing.")
     elif _is_stale_or_unknown_openphish_exact_url_match(openphish):
-        if openphish.age_days is None:
+        if display_brand is not None:
+            reasons.append(
+                f"Este enlace fue identificado previamente como phishing asociado a {display_brand}."
+            )
+        elif openphish.age_days is None:
             reasons.append("El enlace coincide con una URL identificada previamente como phishing.")
         else:
             reasons.append("Este enlace fue identificado previamente como phishing.")
     elif _is_recent_openphish_exact_host_match(openphish):
-        reasons.append("El dominio aparece relacionado con URLs de phishing recientes.")
-    elif openphish.match_type == "exact_host":
-        reasons.append("El dominio aparece relacionado con URLs de phishing registradas previamente.")
+        if display_brand is not None:
+            reasons.append(
+                f"El dominio aparece relacionado con phishing reciente asociado a {display_brand}."
+            )
+        else:
+            reasons.append("El dominio aparece relacionado con URLs de phishing recientes.")
 
     if openphish.is_spear is True:
         reasons.append("El enlace aparece asociado a una campaña de phishing dirigido.")
 
     return reasons
+
+
+def _sanitize_brand_for_display(brand: str | None) -> str | None:
+    if brand is None:
+        return None
+
+    clean_brand = brand.strip()
+    if not clean_brand:
+        return None
+
+    normalized_brand = clean_brand.lower()
+    if normalized_brand in _GENERIC_OPENPHISH_BRANDS:
+        return None
+    if normalized_brand.startswith("generic"):
+        return None
+    if len(clean_brand) > 40:
+        return None
+
+    return clean_brand
 
 
 def _is_recent_openphish_exact_url_match(openphish: OpenPhishResult) -> bool:
