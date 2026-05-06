@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from app.core.config import ANALYSIS_TOTAL_TIMEOUT_SECONDS
 from app.domain.analysis_rules import build_response
+from app.domain.local_heuristics import LocalHeuristicResult, analyze_local_heuristics
 from app.models.schemas import AnalyzeUrlResponse
 from app.services.ipqs_service import check_url_with_ipqs
 from app.services.openphish_service import check_url_with_openphish
@@ -20,6 +21,7 @@ class AnalysisOutcome:
     web_risk: WebRiskResult
     ipqs: IpqsResult
     openphish: OpenPhishResult
+    local_heuristics: LocalHeuristicResult
 
 
 def _normalize_web_risk_result(
@@ -70,10 +72,27 @@ def _normalize_openphish_result(
     return result
 
 
+def _safe_analyze_local_heuristics(
+    url: str,
+    request_id: str | None = None,
+) -> LocalHeuristicResult:
+    try:
+        return analyze_local_heuristics(url)
+    except Exception as exc:  # pragma: no cover - ruta defensiva
+        logger.error(
+            "Excepcion no capturada en heuristicas locales | request_id=%s",
+            request_id,
+            exc_info=exc,
+        )
+        return LocalHeuristicResult(available=False)
+
+
 async def analyze_url_with_providers(
     url: str,
     request_id: str | None = None,
 ) -> AnalysisOutcome:
+    local_heuristics = _safe_analyze_local_heuristics(url, request_id=request_id)
+
     try:
         web_risk_result, ipqs_result, openphish_result = await asyncio.wait_for(
             asyncio.gather(
@@ -101,10 +120,12 @@ async def analyze_url_with_providers(
                 timeout_web_risk,
                 timeout_ipqs,
                 timeout_openphish,
+                local_heuristics,
             ),
             web_risk=timeout_web_risk,
             ipqs=timeout_ipqs,
             openphish=timeout_openphish,
+            local_heuristics=local_heuristics,
         )
 
     normalized_web_risk = _normalize_web_risk_result(
@@ -123,6 +144,7 @@ async def analyze_url_with_providers(
         normalized_web_risk,
         normalized_ipqs,
         normalized_openphish,
+        local_heuristics,
     )
 
     return AnalysisOutcome(
@@ -130,4 +152,5 @@ async def analyze_url_with_providers(
         web_risk=normalized_web_risk,
         ipqs=normalized_ipqs,
         openphish=normalized_openphish,
+        local_heuristics=local_heuristics,
     )

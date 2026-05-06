@@ -1,5 +1,6 @@
 from typing import Literal
 
+from app.domain.local_heuristics import LocalHeuristicResult
 from app.domain.summary_builder import build_user_explanation
 from app.models.schemas import AnalyzeUrlResponse
 from app.services.provider_results import IpqsResult, OpenPhishResult, WebRiskResult
@@ -16,6 +17,17 @@ _IPQS_DANGEROUS_SCORE_THRESHOLD: int = 85
 _IPQS_SAFE_SCORE_THRESHOLD: int = 60
 _OPENPHISH_EXACT_URL_DANGEROUS_MAX_AGE_DAYS: int = 30
 _OPENPHISH_EXACT_HOST_SUSPICIOUS_MAX_AGE_DAYS: int = 15
+_LOCAL_HEURISTIC_DIRECT_BLOCK_CODES = frozenset(
+    {
+        "PUBLIC_IP_HOST",
+        "URL_SHORTENER",
+        "EMBEDDED_BRAND",
+        "LOOKALIKE_BRAND",
+        "EXTREME_HOST_COMPLEXITY",
+    }
+)
+_LOCAL_HEURISTIC_KEYWORD_HOST_CODE = "SUSPICIOUS_KEYWORD_HOST"
+_LOCAL_HEURISTIC_KEYWORD_PATH_CODE = "SUSPICIOUS_KEYWORD_PATH"
 
 
 def compute_analysis_status(
@@ -69,6 +81,26 @@ def _openphish_blocks_safe(openphish: OpenPhishResult) -> bool:
     # safe queda bloqueado aunque esa coincidencia no eleve por si sola
     # a dangerous. Si no hay dangerous, el flujo cae a suspicious.
     return openphish.available and openphish.match_found
+
+
+def _local_heuristics_blocks_safe(local_heuristics: LocalHeuristicResult) -> bool:
+    if not local_heuristics.available:
+        return False
+
+    signal_codes = {signal.code for signal in local_heuristics.signals}
+    if signal_codes & _LOCAL_HEURISTIC_DIRECT_BLOCK_CODES:
+        return True
+
+    # La keyword en host solo bloquea safe si convive con otra senal
+    # heuristica relevante. La keyword en path nunca bloquea por si sola.
+    if _LOCAL_HEURISTIC_KEYWORD_HOST_CODE not in signal_codes:
+        return False
+
+    concurrent_relevant_codes = (
+        signal_codes
+        - {_LOCAL_HEURISTIC_KEYWORD_HOST_CODE, _LOCAL_HEURISTIC_KEYWORD_PATH_CODE}
+    )
+    return bool(concurrent_relevant_codes & _LOCAL_HEURISTIC_DIRECT_BLOCK_CODES)
 
 
 def is_dangerous(
@@ -125,12 +157,14 @@ def is_safe(
     web_risk: WebRiskResult,
     ipqs: IpqsResult,
     openphish: OpenPhishResult,
+    local_heuristics: LocalHeuristicResult,
 ) -> bool:
     web_risk_has_any_threat = len(web_risk.threat_types) > 0
     return (
         web_risk.available
         and ipqs.available
         and (not _openphish_blocks_safe(openphish))
+        and (not _local_heuristics_blocks_safe(local_heuristics))
         and (not web_risk_has_any_threat)
         and ipqs.success
         and ipqs.risk_score is not None
@@ -146,11 +180,12 @@ def build_response(
     web_risk: WebRiskResult,
     ipqs: IpqsResult,
     openphish: OpenPhishResult,
+    local_heuristics: LocalHeuristicResult,
 ) -> AnalyzeUrlResponse:
     analysis_status = compute_analysis_status(web_risk, ipqs, openphish)
     if is_dangerous(web_risk, ipqs, openphish):
         risk_level = "dangerous"
-    elif is_safe(web_risk, ipqs, openphish):
+    elif is_safe(web_risk, ipqs, openphish, local_heuristics):
         risk_level = "safe"
     else:
         # Fallback deliberado a suspicious:
@@ -165,6 +200,7 @@ def build_response(
         web_risk=web_risk,
         ipqs=ipqs,
         openphish=openphish,
+        local_heuristics=local_heuristics,
     )
     return AnalyzeUrlResponse(
         risk_level=risk_level,

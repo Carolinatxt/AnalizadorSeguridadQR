@@ -1,3 +1,4 @@
+import ipaddress
 from urllib.parse import urlsplit
 
 
@@ -7,6 +8,22 @@ _ALLOWED_SCHEMES = {"http", "https"}
 
 def _contains_control_chars(value: str) -> bool:
     return any(ord(character) < 32 or ord(character) == 127 for character in value)
+
+
+def _is_non_public_special_ip_literal(hostname: str) -> bool:
+    try:
+        parsed_ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        return False
+
+    return (
+        parsed_ip.is_private
+        or parsed_ip.is_loopback
+        or parsed_ip.is_link_local
+        or parsed_ip.is_reserved
+        or parsed_ip.is_multicast
+        or parsed_ip.is_unspecified
+    )
 
 
 def validate_public_web_url(value: str) -> str:
@@ -45,5 +62,9 @@ def validate_public_web_url(value: str) -> str:
 
     if not hostname:
         raise ValueError("La URL debe tener un host valido")
+    if _is_non_public_special_ip_literal(hostname):
+        raise ValueError(
+            "La URL usa una direccion de red privada, local o reservada y no puede analizarse de forma segura"
+        )
 
     return normalized

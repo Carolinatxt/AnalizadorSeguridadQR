@@ -73,6 +73,12 @@ async def analyze_url(request: Request, payload: AnalyzeUrlRequest) -> AnalyzeUr
         outcome.openphish.sector,
         outcome.openphish.is_spear,
     )
+    logger.info(
+        "Resultado heuristicas locales | request_id=%s | available=%s | signals=%s",
+        request_id,
+        outcome.local_heuristics.available,
+        [signal.code for signal in outcome.local_heuristics.signals],
+    )
     if outcome.web_risk.provider_status != "ok":
         logger.warning(
             "Proveedor Web Risk con resultado no utilizable | request_id=%s | provider_status=%s | raw_summary=%s",
